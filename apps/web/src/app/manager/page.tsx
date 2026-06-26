@@ -6,6 +6,7 @@ import { hotelApi, Hotel } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 import { toast } from '@/components/ui/toaster';
 import { PhotoUploader } from '@/components/PhotoUploader';
+import { RoomManager } from '@/components/RoomManager';
 
 const TIME_OPTIONS = [
   '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00',
@@ -39,6 +40,7 @@ export default function ManagerPage() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [showAddHotel, setShowAddHotel] = useState(false);
   const [editPhotosId, setEditPhotosId] = useState<string | null>(null);
+  const [manageRoomsId, setManageRoomsId] = useState<string | null>(null);
   const [form, setForm] = useState(BLANK_FORM);
   const [loading, setLoading] = useState(false);
 
@@ -118,7 +120,13 @@ export default function ManagerPage() {
                 {hotel.status?.replace(/_/g, ' ')}
               </span>
             </div>
-            <div className="mt-3 flex items-center gap-4">
+            <div className="mt-3 flex items-center gap-3 flex-wrap">
+              <button
+                onClick={() => setManageRoomsId(hotel.id)}
+                className="text-xs bg-brand-50 hover:bg-brand-100 text-brand-700 px-3 py-1.5 rounded-lg font-medium transition"
+              >
+                🛏️ Rooms ({hotel.rooms?.length ?? 0})
+              </button>
               <button
                 onClick={() => setEditPhotosId(hotel.id)}
                 className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition"
@@ -137,6 +145,20 @@ export default function ManagerPage() {
           </div>
         )}
       </div>
+
+      {/* Manage Rooms Modal */}
+      {manageRoomsId && (() => {
+        const hotel = hotels.find((h) => h.id === manageRoomsId);
+        if (!hotel) return null;
+        return (
+          <RoomManager
+            hotelId={hotel.id}
+            hotelName={hotel.name}
+            initialRooms={hotel.rooms ?? []}
+            onClose={() => setManageRoomsId(null)}
+          />
+        );
+      })()}
 
       {/* Edit Photos Modal */}
       {editPhotosId && (() => {

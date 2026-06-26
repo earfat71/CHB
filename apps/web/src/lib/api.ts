@@ -44,6 +44,8 @@ export const hotelApi = {
   create: (data: Partial<Hotel>) => api.post<Hotel>('/api/hotels', data),
   update: (id: string, data: Partial<Hotel>) => api.patch<Hotel>(`/api/hotels/${id}`, data),
   approve: (id: string) => api.post(`/api/hotels/${id}/approve`, {}),
+  rooms: (hotelId: string) => api.get<Room[]>(`/api/hotels/${hotelId}/rooms`),
+  addRoom: (hotelId: string, data: Partial<Room>) => api.post<Room>(`/api/hotels/${hotelId}/rooms`, data),
 };
 
 // Search
@@ -69,6 +71,12 @@ export const paymentApi = {
     const payloadKey = gateway === 'SSLCOMMERZ' ? 'val_id' : 'txnId';
     return api.post(`/api/payments/webhook/${gateway.toLowerCase()}`, { bookingId, [payloadKey]: txnId });
   },
+};
+
+// Rooms
+export const roomApi = {
+  update: (roomId: string, data: Partial<Room>) => api.patch<Room>(`/api/rooms/${roomId}`, data),
+  delete: (roomId: string) => api.delete<{ success: boolean }>(`/api/rooms/${roomId}`),
 };
 
 // Pricing

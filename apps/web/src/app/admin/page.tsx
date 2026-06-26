@@ -10,6 +10,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { formatBDT } from '@/lib/utils';
 import { toast } from '@/components/ui/toaster';
 import { PhotoUploader } from '@/components/PhotoUploader';
+import { RoomManager } from '@/components/RoomManager';
 
 type Tab = 'overview' | 'config' | 'users' | 'bookings' | 'hotels' | 'reviews' | 'agents' | 'settlements' | 'ledger';
 
@@ -399,6 +400,7 @@ function AdminHotels() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
   const [editPhotosId, setEditPhotosId] = useState<string | null>(null);
+  const [manageRoomsId, setManageRoomsId] = useState<string | null>(null);
 
   useEffect(() => { adminApi.hotels().then(setHotels).catch(console.error).finally(() => setLoading(false)); }, []);
 
@@ -481,6 +483,12 @@ function AdminHotels() {
             </div>
             <div className="flex flex-col gap-2 shrink-0">
               <button
+                onClick={() => setManageRoomsId(h.id)}
+                className="bg-brand-50 text-brand-700 text-sm px-3 py-1.5 rounded-lg hover:bg-brand-100 font-medium transition"
+              >
+                🛏️ Rooms ({h.rooms?.length ?? 0})
+              </button>
+              <button
                 onClick={() => setEditPhotosId(h.id)}
                 className="border text-gray-600 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-50 font-medium transition"
               >
@@ -500,6 +508,20 @@ function AdminHotels() {
           </div>
         </div>
       ))}
+
+      {/* Manage Rooms Modal */}
+      {manageRoomsId && (() => {
+        const hotel = hotels.find((h) => h.id === manageRoomsId);
+        if (!hotel) return null;
+        return (
+          <RoomManager
+            hotelId={hotel.id}
+            hotelName={hotel.name}
+            initialRooms={hotel.rooms ?? []}
+            onClose={() => setManageRoomsId(null)}
+          />
+        );
+      })()}
 
       {/* Edit Photos Modal */}
       {editPhotosId && (() => {
