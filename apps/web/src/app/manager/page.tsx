@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { hotelApi, Hotel } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 import { toast } from '@/components/ui/toaster';
+import { PhotoUploader } from '@/components/PhotoUploader';
 
 const TIME_OPTIONS = [
   '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00',
@@ -29,6 +30,7 @@ const BLANK_FORM = {
   name: '', description: '', address: '',
   starRating: 'THREE', amenities: '',
   checkInTime: '14:00', checkOutTime: '12:00',
+  photos: [] as string[],
 };
 
 export default function ManagerPage() {
@@ -36,6 +38,7 @@ export default function ManagerPage() {
   const router = useRouter();
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [showAddHotel, setShowAddHotel] = useState(false);
+  const [editPhotosId, setEditPhotosId] = useState<string | null>(null);
   const [form, setForm] = useState(BLANK_FORM);
   const [loading, setLoading] = useState(false);
 
@@ -56,6 +59,7 @@ export default function ManagerPage() {
       const hotel = await hotelApi.create({
         ...form,
         amenities: form.amenities.split(',').map((a) => a.trim()).filter(Boolean),
+        photos: form.photos,
       });
       setHotels((prev) => [...prev, hotel]);
       setShowAddHotel(false);
@@ -66,6 +70,14 @@ export default function ManagerPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const savePhotos = async (hotelId: string, photos: string[]) => {
+    try {
+      await hotelApi.update(hotelId, { photos });
+      setHotels((prev) => prev.map((h) => h.id === hotelId ? { ...h, photos } : h));
+      toast('Photos saved!', 'success');
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Failed', 'error'); }
   };
 
   if (!user) return null;
@@ -106,7 +118,13 @@ export default function ManagerPage() {
                 {hotel.status?.replace(/_/g, ' ')}
               </span>
             </div>
-            <div className="mt-3">
+            <div className="mt-3 flex items-center gap-4">
+              <button
+                onClick={() => setEditPhotosId(hotel.id)}
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition"
+              >
+                📸 Photos ({hotel.photos?.length ?? 0})
+              </button>
               <a href={`/hotels/${hotel.slug || hotel.id}`} target="_blank" className="text-xs text-brand-600 hover:underline">View Public Page →</a>
             </div>
           </div>
@@ -119,6 +137,42 @@ export default function ManagerPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Photos Modal */}
+      {editPhotosId && (() => {
+        const hotel = hotels.find((h) => h.id === editPhotosId);
+        if (!hotel) return null;
+        return (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl w-full max-w-lg overflow-y-auto max-h-[90vh]">
+              <div className="p-5 border-b flex items-center justify-between">
+                <div>
+                  <h2 className="font-bold text-lg">Manage Photos</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">{hotel.name}</p>
+                </div>
+                <button onClick={() => setEditPhotosId(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+              </div>
+              <div className="p-5 space-y-4">
+                <PhotoUploader
+                  photos={hotel.photos ?? []}
+                  onChange={(photos) => setHotels((prev) => prev.map((h) => h.id === hotel.id ? { ...h, photos } : h))}
+                />
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={() => { savePhotos(hotel.id, hotel.photos ?? []); setEditPhotosId(null); }}
+                    className="flex-1 bg-brand-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-brand-700 transition"
+                  >
+                    Save Photos
+                  </button>
+                  <button onClick={() => setEditPhotosId(null)} className="flex-1 border py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {showAddHotel && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
@@ -204,6 +258,14 @@ export default function ManagerPage() {
                     {TIME_OPTIONS.map((t) => <option key={t} value={t}>{fmtTime(t)}</option>)}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Hotel Photos</label>
+                <PhotoUploader
+                  photos={form.photos}
+                  onChange={(photos) => setForm({ ...form, photos })}
+                />
               </div>
 
               <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700">

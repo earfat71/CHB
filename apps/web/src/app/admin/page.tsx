@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  adminApi, KPIs, PlatformConfig, AdminUser, AdminBooking, AdminReview,
+  adminApi, hotelApi, KPIs, PlatformConfig, AdminUser, AdminBooking, AdminReview,
   AdminAgent, AgentSettlement, HotelSettlement, Hotel, LedgerEntry,
 } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 import { formatBDT } from '@/lib/utils';
 import { toast } from '@/components/ui/toaster';
+import { PhotoUploader } from '@/components/PhotoUploader';
 
 type Tab = 'overview' | 'config' | 'users' | 'bookings' | 'hotels' | 'reviews' | 'agents' | 'settlements' | 'ledger';
 
@@ -397,6 +398,7 @@ function AdminHotels() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
+  const [editPhotosId, setEditPhotosId] = useState<string | null>(null);
 
   useEffect(() => { adminApi.hotels().then(setHotels).catch(console.error).finally(() => setLoading(false)); }, []);
 
@@ -413,6 +415,14 @@ function AdminHotels() {
       await adminApi.rejectHotel(id);
       setHotels((prev) => prev.map((h) => h.id === id ? { ...h, status: 'REJECTED' } : h));
       toast('Hotel rejected', 'info');
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Failed', 'error'); }
+  };
+
+  const savePhotos = async (hotelId: string, photos: string[]) => {
+    try {
+      await hotelApi.update(hotelId, { photos });
+      setHotels((prev) => prev.map((h) => h.id === hotelId ? { ...h, photos } : h));
+      toast('Photos saved!', 'success');
     } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Failed', 'error'); }
   };
 
@@ -469,19 +479,63 @@ function AdminHotels() {
                 </div>
               )}
             </div>
-            {h.status === 'PENDING_APPROVAL' && (
-              <div className="flex gap-2 shrink-0">
-                <button onClick={() => approve(h.id)} className="bg-green-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-green-700 font-medium transition">
-                  ✓ Approve
-                </button>
-                <button onClick={() => reject(h.id)} className="border border-red-300 text-red-600 text-sm px-4 py-2 rounded-lg hover:bg-red-50 font-medium transition">
-                  ✗ Reject
-                </button>
-              </div>
-            )}
+            <div className="flex flex-col gap-2 shrink-0">
+              <button
+                onClick={() => setEditPhotosId(h.id)}
+                className="border text-gray-600 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-50 font-medium transition"
+              >
+                📸 Photos ({h.photos?.length ?? 0})
+              </button>
+              {h.status === 'PENDING_APPROVAL' && (
+                <>
+                  <button onClick={() => approve(h.id)} className="bg-green-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-green-700 font-medium transition">
+                    ✓ Approve
+                  </button>
+                  <button onClick={() => reject(h.id)} className="border border-red-300 text-red-600 text-sm px-4 py-2 rounded-lg hover:bg-red-50 font-medium transition">
+                    ✗ Reject
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       ))}
+
+      {/* Edit Photos Modal */}
+      {editPhotosId && (() => {
+        const hotel = hotels.find((h) => h.id === editPhotosId);
+        if (!hotel) return null;
+        return (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl w-full max-w-lg overflow-y-auto max-h-[90vh]">
+              <div className="p-5 border-b flex items-center justify-between">
+                <div>
+                  <h2 className="font-bold text-lg">Manage Photos</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">{hotel.name}</p>
+                </div>
+                <button onClick={() => setEditPhotosId(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+              </div>
+              <div className="p-5 space-y-4">
+                <PhotoUploader
+                  photos={hotel.photos ?? []}
+                  onChange={(photos) => setHotels((prev) => prev.map((h) => h.id === hotel.id ? { ...h, photos } : h))}
+                />
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={() => { savePhotos(hotel.id, hotel.photos ?? []); setEditPhotosId(null); }}
+                    className="flex-1 bg-brand-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-brand-700 transition"
+                  >
+                    Save Photos
+                  </button>
+                  <button onClick={() => setEditPhotosId(null)} className="flex-1 border py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

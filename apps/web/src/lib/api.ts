@@ -42,6 +42,7 @@ export const hotelApi = {
   list: () => api.get<Hotel[]>('/api/hotels'),
   get: (id: string) => api.get<Hotel>(`/api/hotels/${id}`),
   create: (data: Partial<Hotel>) => api.post<Hotel>('/api/hotels', data),
+  update: (id: string, data: Partial<Hotel>) => api.patch<Hotel>(`/api/hotels/${id}`, data),
   approve: (id: string) => api.post(`/api/hotels/${id}/approve`, {}),
 };
 
