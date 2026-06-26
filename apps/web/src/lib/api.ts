@@ -60,6 +60,7 @@ export const searchApi = {
 export const bookingApi = {
   hold: (data: HoldRequest) => api.post<{ booking: Booking; pricing: Pricing; holdExpiresAt: string }>('/api/bookings/hold', data),
   my: () => api.get<Booking[]>('/api/bookings/my'),
+  hotel: () => api.get<Booking[]>('/api/bookings/hotel'),
   get: (id: string) => api.get<Booking>(`/api/bookings/${id}`),
   cancel: (id: string, reason?: string) => api.post(`/api/bookings/${id}/cancel`, { reason }),
 };
@@ -89,6 +90,7 @@ export const pricingApi = {
 export const reviewApi = {
   create: (data: { bookingId: string; rating: number; title?: string; body: string }) => api.post('/api/reviews', data),
   hotel: (hotelId: string) => api.get<{ reviews: Review[]; avgRating: number; count: number }>(`/api/reviews/hotel/${hotelId}`),
+  myHotelReviews: () => api.get<AdminReview[]>('/api/reviews/hotel'),
 };
 
 // Agent
@@ -117,6 +119,8 @@ export const adminApi = {
   pendingHotels: () => api.get<Hotel[]>('/api/admin/hotels?status=PENDING_APPROVAL'),
   approveHotel: (id: string) => api.post(`/api/hotels/${id}/approve`, {}),
   rejectHotel: (id: string) => api.post(`/api/hotels/${id}/reject`, {}),
+  cms: () => api.get<CmsPage[]>('/api/admin/cms'),
+  updateCms: (key: string, data: { content?: string; title?: string }) => api.patch<CmsPage>(`/api/admin/cms/${key}`, data),
 };
 
 // Types
@@ -168,3 +172,4 @@ export interface AdminAgent { id: string; agentCode: string; name: string; phone
 export interface AgentSettlement { id: string; agentName: string; agentCode: string; period: string; totalBookings: number; commissionBdt: number; status: string; createdAt: string; }
 export interface HotelSettlement { id: string; hotelName: string; period: string; totalBookings: number; netRevenueBdt: number; status: string; createdAt: string; }
 export interface LedgerEntry { id: string; bookingRef: string; type: 'DEBIT' | 'CREDIT'; account: string; amountBdt: number; description: string; createdAt: string; }
+export interface CmsPage { key: string; title: string; content: string; updatedAt: string; }

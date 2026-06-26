@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   adminApi, hotelApi, KPIs, PlatformConfig, AdminUser, AdminBooking, AdminReview,
-  AdminAgent, AgentSettlement, HotelSettlement, Hotel, LedgerEntry,
+  AdminAgent, AgentSettlement, HotelSettlement, Hotel, LedgerEntry, CmsPage,
 } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 import { formatBDT } from '@/lib/utils';
@@ -12,7 +12,7 @@ import { toast } from '@/components/ui/toaster';
 import { PhotoUploader } from '@/components/PhotoUploader';
 import { RoomManager } from '@/components/RoomManager';
 
-type Tab = 'overview' | 'config' | 'users' | 'bookings' | 'hotels' | 'reviews' | 'agents' | 'settlements' | 'ledger';
+type Tab = 'overview' | 'config' | 'users' | 'bookings' | 'hotels' | 'reviews' | 'agents' | 'settlements' | 'ledger' | 'cms';
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-green-50 text-green-700',
@@ -60,6 +60,7 @@ export default function AdminPage() {
     { id: 'agents', label: '🤝 Agents' },
     { id: 'settlements', label: '💳 Settlements' },
     { id: 'ledger', label: '📒 Ledger' },
+    { id: 'cms', label: '📝 CMS' },
   ];
 
   return (
@@ -101,6 +102,7 @@ export default function AdminPage() {
         {tab === 'agents' && <AdminAgents />}
         {tab === 'settlements' && <AdminSettlements />}
         {tab === 'ledger' && <AdminLedger />}
+        {tab === 'cms' && <AdminCMS />}
       </div>
     </div>
   );
@@ -138,10 +140,10 @@ function AdminOverview({ kpis, onNavigate }: { kpis: KPIs | null; onNavigate: (t
           <h3 className="font-semibold mb-3">Revenue Breakdown</h3>
           <div className="space-y-2 text-sm">
             {[
-              { label: 'Hotel Payouts', pct: 78, color: 'bg-blue-500' },
-              { label: 'VAT Collected (15%)', pct: 12, color: 'bg-yellow-500' },
-              { label: 'Platform Fees (5%)', pct: 6, color: 'bg-green-500' },
-              { label: 'Agent Commissions (8%)', pct: 4, color: 'bg-purple-500' },
+              { label: 'Hotel Payouts', pct: 72, color: 'bg-blue-500' },
+              { label: 'VAT Collected (15%)', pct: 15, color: 'bg-yellow-500' },
+              { label: 'Platform Fees (8%)', pct: 8, color: 'bg-green-500' },
+              { label: 'Agent Commissions (5%)', pct: 5, color: 'bg-purple-500' },
             ].map((r) => (
               <div key={r.label}>
                 <div className="flex justify-between mb-0.5">
@@ -155,7 +157,7 @@ function AdminOverview({ kpis, onNavigate }: { kpis: KPIs | null; onNavigate: (t
             ))}
           </div>
           <div className="mt-4 pt-4 border-t text-xs text-gray-400">
-            Based on 5000 BDT base: +VAT 750 +Platform 250 +Agent 400 = 6400 BDT total
+            Based on ৳5,000 base: +VAT ৳750 +Platform ৳400 +Agent ৳250 = ৳6,400 total
           </div>
         </div>
 
@@ -797,6 +799,109 @@ function AdminSettlements() {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function AdminCMS() {
+  const [pages, setPages] = useState<CmsPage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeKey, setActiveKey] = useState('about');
+  const [editContent, setEditContent] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    adminApi.cms().then((data) => {
+      setPages(data);
+      const first = data[0];
+      if (first) { setActiveKey(first.key); setEditContent(first.content); setEditTitle(first.title); }
+    }).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  const selectPage = (key: string) => {
+    const p = pages.find((x) => x.key === key);
+    if (!p) return;
+    setActiveKey(key);
+    setEditContent(p.content);
+    setEditTitle(p.title);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const updated = await adminApi.updateCms(activeKey, { content: editContent, title: editTitle });
+      setPages((prev) => prev.map((p) => p.key === activeKey ? updated : p));
+      toast('Page saved successfully', 'success');
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Failed', 'error'); }
+    finally { setSaving(false); }
+  };
+
+  if (loading) return <div className="text-center py-16 text-gray-400">Loading CMS…</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+        <strong>Content Management</strong> — Edit the About, Terms, and Refund Policy pages. Changes appear on the live site immediately.
+      </div>
+      <div className="flex gap-6">
+        <div className="w-48 shrink-0">
+          <div className="bg-white border rounded-xl overflow-hidden">
+            {pages.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => selectPage(p.key)}
+                className={`w-full text-left px-4 py-3 text-sm font-medium border-b last:border-b-0 transition ${activeKey === p.key ? 'bg-brand-50 text-brand-700' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                {p.title}
+                <p className="text-xs font-normal text-gray-400 mt-0.5">{new Date(p.updatedAt).toLocaleDateString()}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex-1 bg-white border rounded-xl p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Page Title</label>
+            <input
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Content (Markdown supported)</label>
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              rows={20}
+              className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"
+            />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="bg-brand-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-brand-700 transition disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : 'Save Changes'}
+            </button>
+            <button
+              onClick={() => selectPage(activeKey)}
+              className="border px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
+            >
+              Discard
+            </button>
+            <a
+              href={`/${activeKey === 'about' ? 'about' : activeKey}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-brand-600 text-sm font-medium flex items-center gap-1 hover:underline ml-auto"
+            >
+              View page ↗
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

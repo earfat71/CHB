@@ -7,39 +7,58 @@ export function Footer() {
         <div>
           <div className="flex items-center space-x-2 mb-4">
             <span className="text-2xl">🏖️</span>
-            <span className="font-bold text-white text-lg">CoxBeach</span>
+            <span className="font-display font-bold text-white text-lg">CoxBeach</span>
           </div>
-          <p className="text-sm text-gray-400">
-            Bangladesh&apos;s trusted platform for Cox&apos;s Bazar hotel bookings.
+          <p className="text-sm text-gray-400 mb-4">
+            Bangladesh&apos;s trusted platform exclusively for Cox&apos;s Bazar hotel bookings. Transparent prices, instant confirmation.
+          </p>
+          <p className="text-xs text-gray-500">
+            <span className="font-bengali">কক্সবাজার</span> — Cox&apos;s Bazar, Bangladesh 🇧🇩
           </p>
         </div>
+
         <div>
           <h4 className="text-white font-semibold mb-4">Quick Links</h4>
           <ul className="space-y-2 text-sm">
             <li><Link href="/search" className="hover:text-white transition">Search Hotels</Link></li>
             <li><Link href="/my-bookings" className="hover:text-white transition">My Bookings</Link></li>
             <li><Link href="/agent/register" className="hover:text-white transition">Become an Agent</Link></li>
+            <li><Link href="/agent/dashboard" className="hover:text-white transition">Agent Dashboard</Link></li>
           </ul>
         </div>
+
         <div>
-          <h4 className="text-white font-semibold mb-4">Support</h4>
+          <h4 className="text-white font-semibold mb-4">Company</h4>
           <ul className="space-y-2 text-sm">
-            <li><a href="tel:+8801700000000" className="hover:text-white transition">Hotline: 01700-000000</a></li>
-            <li><a href="mailto:support@coxbeach.com.bd" className="hover:text-white transition">support@coxbeach.com.bd</a></li>
+            <li><Link href="/about" className="hover:text-white transition">About Us</Link></li>
+            <li><Link href="/terms" className="hover:text-white transition">Terms & Conditions</Link></li>
+            <li><Link href="/refund-policy" className="hover:text-white transition">Refund Policy</Link></li>
+            <li><a href="mailto:support@coxbeach.com.bd" className="hover:text-white transition">Contact Support</a></li>
           </ul>
         </div>
+
         <div>
-          <h4 className="text-white font-semibold mb-4">Payments</h4>
-          <div className="flex flex-wrap gap-2">
+          <h4 className="text-white font-semibold mb-4">Payments Accepted</h4>
+          <div className="flex flex-wrap gap-2 mb-4">
             {['bKash', 'Nagad', 'Rocket', 'SSLCommerz'].map((p) => (
               <span key={p} className="bg-gray-800 text-xs px-2 py-1 rounded">{p}</span>
             ))}
           </div>
+          <h4 className="text-white font-semibold mb-2 mt-4">Support</h4>
+          <p className="text-sm">
+            <a href="tel:+8801700000000" className="hover:text-white transition">📞 01700-000000</a>
+          </p>
+          <p className="text-sm mt-1">9 AM – 9 PM, every day</p>
         </div>
       </div>
-      <div className="max-w-6xl mx-auto px-4 mt-8 pt-8 border-t border-gray-800 text-sm text-gray-500 flex justify-between">
-        <span>© 2024 CoxBeach. All rights reserved.</span>
-        <span>Developed in Bangladesh 🇧🇩</span>
+
+      <div className="max-w-6xl mx-auto px-4 mt-8 pt-8 border-t border-gray-800 text-sm text-gray-500 flex flex-col md:flex-row justify-between gap-2">
+        <span>© 2026 CoxBeach. All rights reserved.</span>
+        <div className="flex gap-4">
+          <Link href="/terms" className="hover:text-gray-300 transition">Terms</Link>
+          <Link href="/refund-policy" className="hover:text-gray-300 transition">Refunds</Link>
+          <Link href="/about" className="hover:text-gray-300 transition">About</Link>
+        </div>
       </div>
     </footer>
   );

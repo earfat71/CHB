@@ -34,8 +34,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     discountLabel: body.discountLabel ?? '',
   };
 
-  if (!hotel.rooms) (hotel as { rooms: typeof newRoom[] }).rooms = [];
-  hotel.rooms!.push(newRoom as typeof hotel.rooms[0]);
+  if (!hotel.rooms) (hotel as unknown as { rooms: typeof newRoom[] }).rooms = [];
+  (hotel.rooms as typeof newRoom[]).push(newRoom);
   if (hotel._count) hotel._count.rooms = hotel.rooms!.length;
 
   return NextResponse.json(newRoom, { status: 201 });

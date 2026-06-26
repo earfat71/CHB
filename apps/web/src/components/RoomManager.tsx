@@ -126,8 +126,8 @@ function RoomFormDiscount({ form, onChange }: { form: RoomForm; onChange: (f: Ro
   const hasDiscount = form.discountType !== 'NONE' && discounted < base;
 
   const vat = Math.round(discounted * 0.15);
-  const platform = Math.round(discounted * 0.05);
-  const agent = Math.round(discounted * 0.08);
+  const platform = Math.round(discounted * 0.08);
+  const agent = Math.round(discounted * 0.05);
   const guestTotal = discounted + vat + platform + agent;
 
   return (
@@ -203,8 +203,8 @@ function RoomFormDiscount({ form, onChange }: { form: RoomForm; onChange: (f: Ro
               <div className="flex justify-between"><span>Base price</span><span className="font-medium">{formatBDT(base)}</span></div>
             )}
             <div className="flex justify-between text-gray-400"><span>+ VAT (15%)</span><span>+{formatBDT(vat)}</span></div>
-            <div className="flex justify-between text-gray-400"><span>+ Platform fee (5%)</span><span>+{formatBDT(platform)}</span></div>
-            <div className="flex justify-between text-gray-400"><span>+ Agent comm (8%)</span><span>+{formatBDT(agent)}</span></div>
+            <div className="flex justify-between text-gray-400"><span>+ Platform fee (8%)</span><span>+{formatBDT(platform)}</span></div>
+            <div className="flex justify-between text-gray-400"><span>+ Agent comm (5%)</span><span>+{formatBDT(agent)}</span></div>
             <div className="flex justify-between font-semibold text-green-700 border-t pt-1 mt-1">
               <span>Guest pays</span><span>{formatBDT(guestTotal)}</span>
             </div>

@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   let user = DEMO_USERS.find((u) => u.phone === phone);
   if (!user) {
     // Auto-create customer for new phones in demo
-    user = { id: `usr_${Date.now()}`, phone, name: 'Demo User', email: '', role: 'CUSTOMER', password: '' };
+    user = { id: `usr_${Date.now()}`, phone, name: 'Demo User', email: '', role: 'CUSTOMER', password: '', status: 'ACTIVE', createdAt: new Date().toISOString() };
   }
-  return NextResponse.json({ token: makeToken(user), user: userResponse(user) });
+  return NextResponse.json({ token: makeToken(user!), user: userResponse(user!) });
 }

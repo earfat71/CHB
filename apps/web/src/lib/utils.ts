@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatBDT(amount: number): string {
-  return `BDT ${amount.toLocaleString('en-BD')}`;
+  return `৳ ${amount.toLocaleString('en-BD')}`;
 }
 
 export function formatDate(date: string | Date): string {

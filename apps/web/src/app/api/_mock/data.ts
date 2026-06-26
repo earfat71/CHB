@@ -10,12 +10,12 @@ export const DEMO_USERS = [
 
 export let DEMO_CONFIGS = [
   { key: 'VAT_RATE', value: '0.15', description: 'VAT rate applied to all bookings (e.g. 0.15 = 15%)' },
-  { key: 'PLATFORM_FEE_RATE', value: '0.05', description: 'Platform service fee rate (e.g. 0.05 = 5%)' },
-  { key: 'AGENT_COMM_RATE', value: '0.08', description: 'Agent commission rate on bookings (e.g. 0.08 = 8%)' },
+  { key: 'PLATFORM_FEE_RATE', value: '0.08', description: 'Platform service fee rate (e.g. 0.08 = 8%)' },
+  { key: 'AGENT_COMM_RATE', value: '0.05', description: 'Agent commission rate on bookings (e.g. 0.05 = 5%)' },
   { key: 'OTP_EXPIRY_MINUTES', value: '5', description: 'OTP validity window in minutes' },
-  { key: 'BOOKING_HOLD_MINUTES', value: '15', description: 'How long a booking hold is reserved before releasing' },
+  { key: 'BOOKING_HOLD_MINUTES', value: '10', description: 'How long a booking hold is reserved before releasing' },
   { key: 'MAX_PHOTOS_PER_HOTEL', value: '20', description: 'Maximum photos allowed per hotel listing' },
-  { key: 'AGENT_ATTRIBUTION_HOURS', value: '72', description: 'Agent QR attribution window in hours' },
+  { key: 'AGENT_ATTRIBUTION_HOURS', value: '24', description: 'Agent QR attribution window in hours' },
 ];
 
 export const DEMO_REVIEWS = [
@@ -116,12 +116,18 @@ DEMO_HOTELS[0].reviews = DEMO_REVIEWS.filter((r) => r.hotel.name === 'Ocean Para
 DEMO_HOTELS[1].reviews = DEMO_REVIEWS.filter((r) => r.hotel.name === 'Seashore Inn' && r.status === 'APPROVED');
 DEMO_HOTELS[2].reviews = DEMO_REVIEWS.filter((r) => r.hotel.name === 'Long Beach Grand' && r.status === 'APPROVED');
 
+// Pricing model (§4.8): VAT 15%, Platform fee 8%, Agent comm 5% — all on room subtotal
+// bk_1: base=10000, vat=1500(15%), fee=800(8%), comm=500(5%) => total=12800
+// bk_2: base=7000, vat=1050, fee=560, comm=0 => total=8610
+// bk_3: base=9000, vat=1350, fee=720, comm=450 => total=11520
+// bk_4: base=10000, vat=1500, fee=800, comm=0 => total=12300
+// bk_5: base=9000, vat=1350, fee=720, comm=450 => total=11520
 export const DEMO_BOOKINGS = [
-  { id: 'bk_1', bookingRef: 'CBZ-2026-001', userId: 'usr_customer', hotelId: 'hotel_1', status: 'CONFIRMED', checkIn: '2026-07-01', checkOut: '2026-07-03', nights: 2, guestCount: 2, guestName: 'Customer User', guestPhone: '+8801700000004', baseTotalBdt: 10000, platformFeeBdt: 500, agentCommBdt: 800, vatBdt: 1500, grandTotalBdt: 12800, user: { name: 'Customer User' }, hotel: { name: 'Ocean Paradise Resort' }, createdAt: '2026-06-20T10:00:00Z' },
-  { id: 'bk_2', bookingRef: 'CBZ-2026-002', userId: 'usr_c2', hotelId: 'hotel_2', status: 'CONFIRMED', checkIn: '2026-07-05', checkOut: '2026-07-07', nights: 2, guestCount: 2, guestName: 'Karim Ahmed', guestPhone: '+8801711111111', baseTotalBdt: 7000, platformFeeBdt: 350, agentCommBdt: 0, vatBdt: 1050, grandTotalBdt: 8400, user: { name: 'Karim Ahmed' }, hotel: { name: 'Seashore Inn' }, createdAt: '2026-06-21T12:00:00Z' },
-  { id: 'bk_3', bookingRef: 'CBZ-2026-003', userId: 'usr_c3', hotelId: 'hotel_3', status: 'PENDING_PAYMENT', checkIn: '2026-07-10', checkOut: '2026-07-12', nights: 2, guestCount: 3, guestName: 'Nusrat Jahan', guestPhone: '+8801722222222', baseTotalBdt: 9000, platformFeeBdt: 450, agentCommBdt: 720, vatBdt: 1350, grandTotalBdt: 11520, user: { name: 'Nusrat Jahan' }, hotel: { name: 'Long Beach Grand' }, createdAt: '2026-06-22T14:00:00Z' },
-  { id: 'bk_4', bookingRef: 'CBZ-2026-004', userId: 'usr_customer', hotelId: 'hotel_1', status: 'CHECKED_OUT', checkIn: '2026-06-10', checkOut: '2026-06-12', nights: 2, guestCount: 2, guestName: 'Customer User', guestPhone: '+8801700000004', baseTotalBdt: 10000, platformFeeBdt: 500, agentCommBdt: 0, vatBdt: 1500, grandTotalBdt: 12000, user: { name: 'Customer User' }, hotel: { name: 'Ocean Paradise Resort' }, createdAt: '2026-06-05T09:00:00Z' },
-  { id: 'bk_5', bookingRef: 'CBZ-2026-005', userId: 'usr_c2', hotelId: 'hotel_3', status: 'CANCELLED', checkIn: '2026-06-20', checkOut: '2026-06-22', nights: 2, guestCount: 2, guestName: 'Karim Ahmed', guestPhone: '+8801711111111', baseTotalBdt: 9000, platformFeeBdt: 450, agentCommBdt: 720, vatBdt: 1350, grandTotalBdt: 11520, user: { name: 'Karim Ahmed' }, hotel: { name: 'Long Beach Grand' }, createdAt: '2026-06-10T08:00:00Z' },
+  { id: 'bk_1', bookingRef: 'CBZ-2026-001', userId: 'usr_customer', hotelId: 'hotel_1', status: 'CONFIRMED', checkIn: '2026-07-01', checkOut: '2026-07-03', nights: 2, guestCount: 2, guestName: 'Customer User', guestPhone: '+8801700000004', baseTotalBdt: 10000, platformFeeBdt: 800, agentCommBdt: 500, vatBdt: 1500, grandTotalBdt: 12800, user: { name: 'Customer User' }, hotel: { name: 'Ocean Paradise Resort' }, createdAt: '2026-06-20T10:00:00Z' },
+  { id: 'bk_2', bookingRef: 'CBZ-2026-002', userId: 'usr_c2', hotelId: 'hotel_2', status: 'CONFIRMED', checkIn: '2026-07-05', checkOut: '2026-07-07', nights: 2, guestCount: 2, guestName: 'Karim Ahmed', guestPhone: '+8801711111111', baseTotalBdt: 7000, platformFeeBdt: 560, agentCommBdt: 0, vatBdt: 1050, grandTotalBdt: 8610, user: { name: 'Karim Ahmed' }, hotel: { name: 'Seashore Inn' }, createdAt: '2026-06-21T12:00:00Z' },
+  { id: 'bk_3', bookingRef: 'CBZ-2026-003', userId: 'usr_c3', hotelId: 'hotel_3', status: 'PENDING_PAYMENT', checkIn: '2026-07-10', checkOut: '2026-07-12', nights: 2, guestCount: 3, guestName: 'Nusrat Jahan', guestPhone: '+8801722222222', baseTotalBdt: 9000, platformFeeBdt: 720, agentCommBdt: 450, vatBdt: 1350, grandTotalBdt: 11520, user: { name: 'Nusrat Jahan' }, hotel: { name: 'Long Beach Grand' }, createdAt: '2026-06-22T14:00:00Z' },
+  { id: 'bk_4', bookingRef: 'CBZ-2026-004', userId: 'usr_customer', hotelId: 'hotel_1', status: 'CHECKED_OUT', checkIn: '2026-06-10', checkOut: '2026-06-12', nights: 2, guestCount: 2, guestName: 'Customer User', guestPhone: '+8801700000004', baseTotalBdt: 10000, platformFeeBdt: 800, agentCommBdt: 0, vatBdt: 1500, grandTotalBdt: 12300, user: { name: 'Customer User' }, hotel: { name: 'Ocean Paradise Resort' }, createdAt: '2026-06-05T09:00:00Z' },
+  { id: 'bk_5', bookingRef: 'CBZ-2026-005', userId: 'usr_c2', hotelId: 'hotel_3', status: 'CANCELLED', checkIn: '2026-06-20', checkOut: '2026-06-22', nights: 2, guestCount: 2, guestName: 'Karim Ahmed', guestPhone: '+8801711111111', baseTotalBdt: 9000, platformFeeBdt: 720, agentCommBdt: 450, vatBdt: 1350, grandTotalBdt: 11520, user: { name: 'Karim Ahmed' }, hotel: { name: 'Long Beach Grand' }, createdAt: '2026-06-10T08:00:00Z' },
 ];
 
 export const DEMO_AGENTS = [
@@ -153,6 +159,95 @@ export const DEMO_LEDGER = [
   { id: 'le_7', bookingRef: 'CBZ-2026-002', type: 'CREDIT', account: 'PLATFORM_REVENUE', amountBdt: 350, description: 'Platform fee', createdAt: '2026-06-21T12:05:00Z' },
   { id: 'le_8', bookingRef: 'CBZ-2026-002', type: 'CREDIT', account: 'VAT_PAYABLE', amountBdt: 1050, description: 'VAT collected', createdAt: '2026-06-21T12:05:00Z' },
   { id: 'le_9', bookingRef: 'CBZ-2026-002', type: 'CREDIT', account: 'HOTEL_PAYABLE', amountBdt: 7000, description: 'Hotel revenue payable', createdAt: '2026-06-21T12:05:00Z' },
+];
+
+export let DEMO_CMS = [
+  {
+    key: 'about',
+    title: 'About CoxBeach',
+    content: `CoxBeach is Bangladesh's premier hotel booking platform dedicated to Cox's Bazar — the world's longest natural sea beach.
+
+## Our Mission
+
+We connect travellers with the finest hotels and resorts across Cox's Bazar, providing transparent pricing and seamless bookings. Every booking includes a clear breakdown: room rate + VAT (15%) + platform fee (8%) + optional agent commission (5%).
+
+## Why Choose CoxBeach?
+
+- **Local expertise**: We know every stretch of beach from Kolatoli to Marine Drive
+- **Transparent pricing**: No hidden fees — you see the full breakdown before you pay
+- **Bangladeshi payments**: bKash, Nagad, Rocket, and card payments accepted
+- **Agent network**: Travel agents earn 5% commission on every booking they refer
+- **Instant confirmation**: Real-time availability and immediate booking confirmation
+
+## Contact Us
+
+Email: support@coxbeach.com.bd
+Phone: +880 1700-000000
+Office: Cox's Bazar, Chittagong, Bangladesh`,
+    updatedAt: '2026-06-01T00:00:00Z',
+  },
+  {
+    key: 'terms',
+    title: 'Terms & Conditions',
+    content: `# Terms & Conditions
+
+**Last updated: June 2026**
+
+## 1. Agreement
+
+By using CoxBeach you agree to these terms. If you disagree, please do not use the platform.
+
+## 2. Booking & Payment
+
+All prices are in Bangladeshi Taka (BDT). Payment is required to confirm a booking. We accept bKash, Nagad, Rocket, and SSLCommerz.
+
+## 3. Cancellation Policy
+
+- More than 48 hours before check-in: **100% refund**
+- 24–48 hours before check-in: **50% refund**
+- Less than 24 hours before check-in: **No refund**
+
+## 4. Agent Programme
+
+Registered agents earn 5% commission on bookings within 24 hours of QR attribution. Commissions are settled monthly.
+
+## 5. Governing Law
+
+These terms are governed by the laws of the People's Republic of Bangladesh.`,
+    updatedAt: '2026-06-01T00:00:00Z',
+  },
+  {
+    key: 'refund-policy',
+    title: 'Refund Policy',
+    content: `# Refund Policy
+
+**Last updated: June 2026**
+
+## Cancellation Refund Schedule
+
+| Cancellation Time | Refund |
+|---|---|
+| More than 48h before check-in | 100% |
+| 24–48h before check-in | 50% |
+| Less than 24h before check-in | 0% |
+
+## How to Cancel
+
+1. Log in to your account
+2. Go to My Bookings
+3. Select the booking and click Cancel
+4. Confirm cancellation
+
+## Refund Timeline
+
+- bKash / Nagad / Rocket: 3–5 business days
+- Card payments: 5–10 business days
+
+## Exceptions
+
+Hotel-initiated cancellations receive a full refund regardless of timing. Force majeure events are handled case by case.`,
+    updatedAt: '2026-06-01T00:00:00Z',
+  },
 ];
 
 export function calcPricing(basePricePerNight: number, nights: number, hasAgent: boolean) {
