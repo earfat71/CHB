@@ -35,6 +35,7 @@ export const authApi = {
   login: (phone: string, password: string) => api.post<{ token: string; user: User }>('/api/auth/login', { phone, password }),
   register: (data: { phone: string; name: string; email?: string; password?: string }) => api.post<{ token: string; user: User }>('/api/auth/register', data),
   me: () => api.get<User>('/api/auth/me'),
+  updateProfile: (data: { name?: string; email?: string }) => api.patch<User>('/api/auth/me', data),
 };
 
 // Hotel helpers

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { bookingApi, paymentApi, Booking, PaymentResponse } from '@/lib/api';
 import { PriceBreakdown } from '@/components/PriceBreakdown';
@@ -9,10 +9,10 @@ import { toast } from '@/components/ui/toaster';
 import { useAuth } from '@/components/AuthProvider';
 
 const GATEWAYS = [
-  { id: 'BKASH', label: 'bKash', icon: '🔴', color: 'border-red-200 hover:border-red-400' },
-  { id: 'NAGAD', label: 'Nagad', icon: '🟠', color: 'border-orange-200 hover:border-orange-400' },
-  { id: 'ROCKET', label: 'Rocket', icon: '🟣', color: 'border-purple-200 hover:border-purple-400' },
-  { id: 'SSLCOMMERZ', label: 'Card / SSLCommerz', icon: '💳', color: 'border-blue-200 hover:border-blue-400' },
+  { id: 'BKASH', label: 'bKash', color: 'border-red-200 hover:border-red-400', selected: 'border-red-500 bg-red-50', logo: '🔴' },
+  { id: 'NAGAD', label: 'Nagad', color: 'border-orange-200 hover:border-orange-400', selected: 'border-orange-500 bg-orange-50', logo: '🟠' },
+  { id: 'ROCKET', label: 'Rocket', color: 'border-purple-200 hover:border-purple-400', selected: 'border-purple-500 bg-purple-50', logo: '🟣' },
+  { id: 'SSLCOMMERZ', label: 'Card / SSLCommerz', color: 'border-blue-200 hover:border-blue-400', selected: 'border-blue-500 bg-blue-50', logo: '💳' },
 ];
 
 function CheckoutPage() {
@@ -27,26 +27,31 @@ function CheckoutPage() {
   const [paying, setPaying] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<PaymentResponse | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
-    if (!bookingId) return;
+    if (!bookingId) { router.push('/'); return; }
     bookingApi.get(bookingId)
       .then(setBooking)
-      .catch((e) => { toast(e.message, 'error'); router.push('/'); })
+      .catch(() => { toast('Booking not found', 'error'); router.push('/my-bookings'); })
       .finally(() => setLoading(false));
-  }, [bookingId]);
+  }, [bookingId, router]);
+
+  const tick = useCallback(() => {
+    if (!booking?.holdExpiresAt) return;
+    const left = Math.max(0, Math.floor((new Date(booking.holdExpiresAt).getTime() - Date.now()) / 1000));
+    setTimeLeft(left);
+    if (left === 0 && !expired) {
+      setExpired(true);
+      toast('Your hold has expired. Please search again.', 'error');
+    }
+  }, [booking, expired]);
 
   useEffect(() => {
-    if (!booking?.holdExpiresAt) return;
-    const update = () => {
-      const left = Math.max(0, Math.floor((new Date(booking.holdExpiresAt!).getTime() - Date.now()) / 1000));
-      setTimeLeft(left);
-      if (left === 0) toast('Booking hold expired. Please search again.', 'error');
-    };
-    update();
-    const interval = setInterval(update, 1000);
+    tick();
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [booking]);
+  }, [tick]);
 
   const handlePay = async () => {
     if (!booking) return;
@@ -54,7 +59,7 @@ function CheckoutPage() {
     try {
       const result = await paymentApi.initiate(booking.id, gateway);
       setPaymentInfo(result);
-      toast('Sandbox payment initiated! Click "Confirm Payment" to simulate success.', 'info');
+      toast('Payment initiated — click Confirm to simulate success', 'info');
     } catch (e: unknown) {
       toast(e instanceof Error ? e.message : 'Payment failed', 'error');
     } finally {
@@ -68,7 +73,7 @@ function CheckoutPage() {
     try {
       const txnId = `SANDBOX-TXN-${Date.now()}`;
       await paymentApi.confirmSandbox(gateway, booking.id, txnId);
-      toast('Payment confirmed!', 'success');
+      toast('Payment confirmed! Redirecting…', 'success');
       router.push(`/booking/confirmation?bookingId=${booking.id}`);
     } catch (e: unknown) {
       toast(e instanceof Error ? e.message : 'Confirmation failed', 'error');
@@ -77,70 +82,124 @@ function CheckoutPage() {
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-64">Loading checkout...</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="text-center">
+        <div className="w-8 h-8 border-4 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+        <p className="text-gray-500 text-sm">Loading checkout…</p>
+      </div>
+    </div>
+  );
   if (!booking) return null;
 
   const mins = Math.floor(timeLeft / 60);
   const secs = timeLeft % 60;
+  const timerColor = timeLeft < 120 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200';
+
+  // Build pricing object from booking for PriceBreakdown
+  const pricingObj = {
+    baseTotalBdt: booking.baseTotalBdt,
+    platformFeeBdt: booking.platformFeeBdt,
+    agentCommBdt: booking.agentCommBdt,
+    vatBdt: booking.vatBdt,
+    grandTotalBdt: booking.grandTotalBdt,
+    nights: booking.nights,
+    pricePerNight: Math.round(booking.baseTotalBdt / booking.nights),
+    rates: {
+      vatRate: 0.15,
+      platformFeeRate: 0.08,
+      agentCommRate: booking.agentCommBdt > 0 ? 0.05 : 0,
+    },
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Secure Checkout</h1>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold font-display text-gray-900">Secure Checkout</h1>
+        <p className="text-sm text-gray-500 mt-1">Complete your payment to confirm the booking</p>
+      </div>
 
       {/* Hold Timer */}
-      {timeLeft > 0 && (
-        <div className={`mb-6 p-3 rounded-lg flex items-center gap-2 text-sm ${timeLeft < 120 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'}`}>
-          ⏱ Room held for: <strong>{mins}:{secs.toString().padStart(2, '0')}</strong>
+      {booking.holdExpiresAt && timeLeft > 0 && (
+        <div className={`mb-6 p-3 rounded-xl flex items-center gap-3 text-sm border ${timerColor}`}>
+          <div className="text-lg">⏱</div>
+          <div>
+            <span className="font-medium">Room held for </span>
+            <span className="font-bold tabular-nums">{mins}:{secs.toString().padStart(2, '0')}</span>
+            {timeLeft < 120 && <span className="ml-2 text-xs">— Act quickly!</span>}
+          </div>
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-8">
-        {/* Booking Summary */}
+      {expired && (
+        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+          <p className="font-semibold">Hold expired</p>
+          <p className="mt-1">Your room hold has expired. Please <a href="/search" className="underline font-medium">search again</a> to book a new room.</p>
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Left: Booking Summary + Price */}
         <div className="space-y-4">
           <div className="bg-white border rounded-xl p-5">
-            <h2 className="font-semibold mb-4">Booking Summary</h2>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-gray-600">Booking Ref</span><span className="font-mono font-medium">{booking.bookingRef}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Hotel</span><span>{booking.hotel?.name}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Check-in</span><span>{formatDate(booking.checkIn)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Check-out</span><span>{formatDate(booking.checkOut)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Nights</span><span>{booking.nights}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Guests</span><span>{booking.guestCount}</span></div>
+            <h2 className="font-semibold text-gray-900 mb-4">Booking Summary</h2>
+            <div className="space-y-2.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Reference</span>
+                <span className="font-mono font-semibold text-brand-700">{booking.bookingRef}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Hotel</span>
+                <span className="font-medium text-right max-w-[60%]">{booking.hotel?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Check-in</span>
+                <span>{formatDate(booking.checkIn)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Check-out</span>
+                <span>{formatDate(booking.checkOut)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Duration</span>
+                <span>{booking.nights} night{booking.nights > 1 ? 's' : ''}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Guests</span>
+                <span>{booking.guestCount} guest{booking.guestCount > 1 ? 's' : ''}</span>
+              </div>
             </div>
           </div>
 
-          <PriceBreakdown
-            pricing={{
-              baseTotalBdt: booking.baseTotalBdt,
-              platformFeeBdt: booking.platformFeeBdt,
-              agentCommBdt: booking.agentCommBdt,
-              vatBdt: booking.vatBdt,
-              grandTotalBdt: booking.grandTotalBdt,
-              nights: booking.nights,
-              pricePerNight: Math.round(booking.baseTotalBdt / booking.nights),
-              rates: { vatRate: 0.15, platformFeeRate: 0.05, agentCommRate: booking.agentCommBdt > 0 ? 0.08 : 0 },
-            }}
-          />
+          <PriceBreakdown pricing={pricingObj} />
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
-            🔒 SANDBOX MODE — No real money will be charged. This is a test environment.
+          {booking.agentCommBdt > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-700 flex items-center gap-2">
+              <span>✓</span>
+              <span>Agent referral applied — 5% commission included</span>
+            </div>
+          )}
+
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700 flex items-center gap-2">
+            <span>🔒</span>
+            <span>SANDBOX MODE — No real money charged. This is a demo environment.</span>
           </div>
         </div>
 
-        {/* Payment */}
+        {/* Right: Payment + Guest details */}
         <div className="space-y-4">
           <div className="bg-white border rounded-xl p-5">
-            <h2 className="font-semibold mb-4">Select Payment Method</h2>
-            <div className="space-y-2 mb-6">
+            <h2 className="font-semibold text-gray-900 mb-4">Payment Method</h2>
+            <div className="space-y-2 mb-5">
               {GATEWAYS.map((g) => (
                 <button
                   key={g.id}
-                  onClick={() => setGateway(g.id)}
-                  className={`w-full flex items-center gap-3 p-3 border-2 rounded-lg transition ${gateway === g.id ? 'border-brand-600 bg-brand-50' : g.color}`}
+                  onClick={() => { setGateway(g.id); setPaymentInfo(null); }}
+                  className={`w-full flex items-center gap-3 p-3 border-2 rounded-xl transition text-left ${gateway === g.id ? g.selected : g.color + ' bg-white'}`}
                 >
-                  <span className="text-2xl">{g.icon}</span>
-                  <span className="font-medium">{g.label}</span>
-                  {gateway === g.id && <span className="ml-auto text-brand-600 font-bold">✓</span>}
+                  <span className="text-xl">{g.logo}</span>
+                  <span className="font-medium text-sm">{g.label}</span>
+                  {gateway === g.id && <span className="ml-auto text-brand-600 font-bold text-sm">✓ Selected</span>}
                 </button>
               ))}
             </div>
@@ -148,40 +207,59 @@ function CheckoutPage() {
             {!paymentInfo ? (
               <button
                 onClick={handlePay}
-                disabled={paying}
-                className="w-full bg-brand-600 text-white py-3 rounded-lg font-semibold hover:bg-brand-700 transition disabled:opacity-50"
+                disabled={paying || expired}
+                className="w-full bg-marigold-500 hover:bg-marigold-600 text-gray-900 py-3 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {paying ? 'Processing...' : `Pay ${formatBDT(booking.grandTotalBdt)} via ${gateway}`}
+                {paying ? 'Processing…' : `Pay ${formatBDT(booking.grandTotalBdt)} via ${gateway}`}
               </button>
             ) : (
               <div className="space-y-3">
-                <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
-                  <p className="font-medium text-gray-800 mb-1">Sandbox Payment Ready</p>
-                  <p>{paymentInfo.instructions}</p>
+                <div className="bg-sand-50 border border-sand-200 rounded-xl p-4 text-xs text-gray-700">
+                  <p className="font-semibold text-gray-900 mb-2">Sandbox Instructions</p>
+                  <p className="leading-relaxed">{paymentInfo.instructions}</p>
                 </div>
                 <button
                   onClick={handleSimulateSuccess}
                   disabled={paying}
-                  className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50"
+                  className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition disabled:opacity-50"
                 >
-                  {paying ? 'Confirming...' : '✓ Simulate Successful Payment'}
+                  {paying ? 'Confirming…' : '✓ Simulate Successful Payment'}
+                </button>
+                <button
+                  onClick={() => setPaymentInfo(null)}
+                  className="w-full text-sm text-gray-500 hover:underline"
+                >
+                  ← Change payment method
                 </button>
               </div>
             )}
-
-            <p className="text-xs text-gray-400 text-center mt-3">
-              Payments secured via bKash, Nagad, Rocket & SSLCommerz
-            </p>
           </div>
 
           <div className="bg-white border rounded-xl p-5">
-            <h2 className="font-semibold mb-3">Guest Details</h2>
+            <h2 className="font-semibold text-gray-900 mb-3">Guest Details</h2>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-gray-600">Name</span><span>{user?.name}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">Phone</span><span>{user?.phone}</span></div>
-              {user?.email && <div className="flex justify-between"><span className="text-gray-600">Email</span><span>{user.email}</span></div>}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Name</span>
+                <span className="font-medium">{user?.name ?? booking.guestName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Phone</span>
+                <span className="font-mono">{user?.phone ?? booking.guestPhone}</span>
+              </div>
+              {(user?.email || booking.guestEmail) && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Email</span>
+                  <span>{user?.email || booking.guestEmail}</span>
+                </div>
+              )}
             </div>
           </div>
+
+          <p className="text-xs text-gray-400 text-center">
+            By completing payment you agree to our{' '}
+            <a href="/terms" className="underline">Terms & Conditions</a> and{' '}
+            <a href="/refund-policy" className="underline">Refund Policy</a>.
+          </p>
         </div>
       </div>
     </div>
@@ -190,7 +268,7 @@ function CheckoutPage() {
 
 export default function CheckoutWrapper() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-64">Loading...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center h-64">Loading…</div>}>
       <CheckoutPage />
     </Suspense>
   );
