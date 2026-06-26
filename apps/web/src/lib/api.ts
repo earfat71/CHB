@@ -133,6 +133,9 @@ export interface Room {
   id: string; hotelId: string; name: string; type: string; description?: string;
   basePriceBdt: number; maxGuests: number; totalUnits: number; photos: string[]; amenities: string[];
   isActive?: boolean; hotel?: Hotel;
+  discountType?: 'NONE' | 'PERCENTAGE' | 'AMOUNT';
+  discountValue?: number;
+  discountLabel?: string;
 }
 export interface HoldRequest {
   roomId: string; checkIn: string; checkOut: string; guestCount?: number; attributionSessionId?: string;

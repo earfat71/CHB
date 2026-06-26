@@ -29,6 +29,9 @@ export async function PATCH(req: Request, { params }: { params: { roomId: string
   if (body.amenities !== undefined) room.amenities = body.amenities;
   if (body.photos !== undefined) room.photos = body.photos;
   if (body.isActive !== undefined) room.isActive = body.isActive;
+  if (body.discountType !== undefined) room.discountType = body.discountType;
+  if (body.discountValue !== undefined) room.discountValue = Number(body.discountValue);
+  if (body.discountLabel !== undefined) room.discountLabel = body.discountLabel;
 
   return NextResponse.json(found.room);
 }

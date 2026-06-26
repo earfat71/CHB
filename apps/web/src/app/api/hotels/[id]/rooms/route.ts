@@ -26,9 +26,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     basePriceBdt: Number(body.basePriceBdt),
     maxGuests: Number(body.maxGuests ?? 2),
     totalUnits: Number(body.totalUnits ?? 1),
-    photos: body.photos ?? [],
+    photos: Array.isArray(body.photos) ? body.photos : [],
     amenities: Array.isArray(body.amenities) ? body.amenities : [],
     isActive: true,
+    discountType: body.discountType ?? 'NONE',
+    discountValue: Number(body.discountValue ?? 0),
+    discountLabel: body.discountLabel ?? '',
   };
 
   if (!hotel.rooms) (hotel as { rooms: typeof newRoom[] }).rooms = [];
