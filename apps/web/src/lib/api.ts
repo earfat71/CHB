@@ -96,14 +96,18 @@ export const adminApi = {
   config: () => api.get<PlatformConfig[]>('/api/admin/config'),
   updateConfig: (key: string, value: string) => api.patch(`/api/admin/config/${key}`, { value }),
   users: () => api.get<AdminUser[]>('/api/admin/users'),
+  updateUser: (id: string, data: { status: string }) => api.patch(`/api/admin/users/${id}`, data),
   bookings: () => api.get<AdminBooking[]>('/api/admin/bookings'),
   agents: () => api.get<AdminAgent[]>('/api/admin/agents'),
   settlements: () => api.get<{ agents: AgentSettlement[]; hotels: HotelSettlement[] }>('/api/admin/settlements'),
+  ledger: () => api.get<LedgerEntry[]>('/api/admin/ledger'),
   pendingReviews: () => api.get<AdminReview[]>('/api/reviews/pending'),
   approveReview: (id: string) => api.patch(`/api/reviews/${id}/approve`, {}),
   rejectReview: (id: string) => api.patch(`/api/reviews/${id}/reject`, {}),
-  pendingHotels: () => api.get<Hotel[]>('/api/hotels?status=PENDING_APPROVAL'),
+  hotels: (status?: string) => api.get<Hotel[]>(`/api/admin/hotels${status ? `?status=${status}` : ''}`),
+  pendingHotels: () => api.get<Hotel[]>('/api/admin/hotels?status=PENDING_APPROVAL'),
   approveHotel: (id: string) => api.post(`/api/hotels/${id}/approve`, {}),
+  rejectHotel: (id: string) => api.post(`/api/hotels/${id}/reject`, {}),
 };
 
 // Types
@@ -151,3 +155,4 @@ export interface AdminReview { id: string; rating: number; title?: string; body:
 export interface AdminAgent { id: string; agentCode: string; name: string; phone: string; nidLast4: string; totalBookings: number; totalCommissionBdt: number; pendingCommissionBdt: number; status: string; joinedAt: string; }
 export interface AgentSettlement { id: string; agentName: string; agentCode: string; period: string; totalBookings: number; commissionBdt: number; status: string; createdAt: string; }
 export interface HotelSettlement { id: string; hotelName: string; period: string; totalBookings: number; netRevenueBdt: number; status: string; createdAt: string; }
+export interface LedgerEntry { id: string; bookingRef: string; type: 'DEBIT' | 'CREDIT'; account: string; amountBdt: number; description: string; createdAt: string; }

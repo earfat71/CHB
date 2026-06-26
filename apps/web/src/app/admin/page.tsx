@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   adminApi, KPIs, PlatformConfig, AdminUser, AdminBooking, AdminReview,
-  AdminAgent, AgentSettlement, HotelSettlement, Hotel,
+  AdminAgent, AgentSettlement, HotelSettlement, Hotel, LedgerEntry,
 } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 import { formatBDT } from '@/lib/utils';
 import { toast } from '@/components/ui/toaster';
 
-type Tab = 'overview' | 'config' | 'users' | 'bookings' | 'reviews' | 'hotels' | 'agents' | 'settlements' | 'ledger';
+type Tab = 'overview' | 'config' | 'users' | 'bookings' | 'hotels' | 'reviews' | 'agents' | 'settlements' | 'ledger';
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-green-50 text-green-700',
@@ -90,7 +90,7 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {tab === 'overview' && <AdminOverview kpis={kpis} />}
+        {tab === 'overview' && <AdminOverview kpis={kpis} onNavigate={setTab} />}
         {tab === 'config' && <AdminConfig />}
         {tab === 'users' && <AdminUsers />}
         {tab === 'bookings' && <AdminBookings />}
@@ -104,13 +104,13 @@ export default function AdminPage() {
   );
 }
 
-function AdminOverview({ kpis }: { kpis: KPIs | null }) {
+function AdminOverview({ kpis, onNavigate }: { kpis: KPIs | null; onNavigate: (t: Tab) => void }) {
   if (!kpis) return <div className="text-center py-16 text-gray-400">Loading KPIs…</div>;
 
   const stats = [
     { label: 'Active Hotels', value: kpis.totalHotels, icon: '🏨', color: 'bg-blue-50 text-blue-700', sub: `${kpis.pendingHotels} pending approval` },
     { label: 'Total Bookings', value: kpis.totalBookings, icon: '📋', color: 'bg-green-50 text-green-700', sub: `${kpis.confirmedBookings} confirmed` },
-    { label: 'Total Revenue', value: formatBDT(kpis.totalRevenueBdt), icon: '💰', color: 'bg-yellow-50 text-yellow-700', sub: 'All-time' },
+    { label: 'Total Revenue', value: formatBDT(kpis.totalRevenueBdt), icon: '💰', color: 'bg-yellow-50 text-yellow-700', sub: 'From confirmed bookings' },
     { label: 'Registered Users', value: kpis.totalUsers, icon: '👥', color: 'bg-purple-50 text-purple-700', sub: 'Across all roles' },
     { label: 'Active Agents', value: kpis.totalAgents, icon: '🤝', color: 'bg-indigo-50 text-indigo-700', sub: 'Earning commission' },
     { label: 'Pending Reviews', value: kpis.pendingReviews, icon: '⭐', color: kpis.pendingReviews > 0 ? 'bg-orange-50 text-orange-700' : 'bg-gray-50 text-gray-500', sub: 'Awaiting moderation', alert: kpis.pendingReviews > 0 },
@@ -122,7 +122,7 @@ function AdminOverview({ kpis }: { kpis: KPIs | null }) {
     <div className="space-y-6">
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((s) => (
-          <div key={s.label} className={`rounded-xl p-5 ${s.color} ${s.alert ? 'ring-2 ring-orange-300' : ''}`}>
+          <div key={s.label} className={`rounded-xl p-5 ${s.color} ${'alert' in s && s.alert ? 'ring-2 ring-orange-300' : ''}`}>
             <div className="text-3xl mb-2">{s.icon}</div>
             <p className="text-xs font-medium opacity-70 uppercase tracking-wide">{s.label}</p>
             <p className="text-2xl font-bold mt-0.5">{s.value}</p>
@@ -136,9 +136,9 @@ function AdminOverview({ kpis }: { kpis: KPIs | null }) {
           <h3 className="font-semibold mb-3">Revenue Breakdown</h3>
           <div className="space-y-2 text-sm">
             {[
-              { label: 'Hotel Payouts (gross)', pct: 78, color: 'bg-blue-500' },
-              { label: 'Platform Fees (5%)', pct: 10, color: 'bg-green-500' },
-              { label: 'VAT Collected (15%)', pct: 8, color: 'bg-yellow-500' },
+              { label: 'Hotel Payouts', pct: 78, color: 'bg-blue-500' },
+              { label: 'VAT Collected (15%)', pct: 12, color: 'bg-yellow-500' },
+              { label: 'Platform Fees (5%)', pct: 6, color: 'bg-green-500' },
               { label: 'Agent Commissions (8%)', pct: 4, color: 'bg-purple-500' },
             ].map((r) => (
               <div key={r.label}>
@@ -146,11 +146,14 @@ function AdminOverview({ kpis }: { kpis: KPIs | null }) {
                   <span className="text-gray-600">{r.label}</span>
                   <span className="font-medium">{r.pct}%</span>
                 </div>
-                <div className="h-1.5 bg-gray-100 rounded-full">
-                  <div className={`h-1.5 rounded-full ${r.color}`} style={{ width: `${r.pct}%` }} />
+                <div className="h-2 bg-gray-100 rounded-full">
+                  <div className={`h-2 rounded-full ${r.color}`} style={{ width: `${r.pct}%` }} />
                 </div>
               </div>
             ))}
+          </div>
+          <div className="mt-4 pt-4 border-t text-xs text-gray-400">
+            Based on 5000 BDT base: +VAT 750 +Platform 250 +Agent 400 = 6400 BDT total
           </div>
         </div>
 
@@ -158,10 +161,11 @@ function AdminOverview({ kpis }: { kpis: KPIs | null }) {
           <h3 className="font-semibold mb-3">Quick Actions</h3>
           <div className="space-y-2">
             {[
-              { label: 'Review pending hotels', href: '#', onClick: () => {}, icon: '🏗️', badge: kpis.pendingHotels },
-              { label: 'Moderate pending reviews', href: '#', onClick: () => {}, icon: '⭐', badge: kpis.pendingReviews },
-              { label: 'Process agent settlements', href: '#', onClick: () => {}, icon: '💳', badge: null },
-              { label: 'Download revenue report', href: '#', onClick: () => toast('Report download not available in demo', 'info'), icon: '📊', badge: null },
+              { label: 'Review pending hotels', onClick: () => onNavigate('hotels'), icon: '🏗️', badge: kpis.pendingHotels },
+              { label: 'Moderate pending reviews', onClick: () => onNavigate('reviews'), icon: '⭐', badge: kpis.pendingReviews },
+              { label: 'Manage platform config', onClick: () => onNavigate('config'), icon: '⚙️', badge: null },
+              { label: 'Process agent settlements', onClick: () => onNavigate('settlements'), icon: '💳', badge: null },
+              { label: 'View double-entry ledger', onClick: () => onNavigate('ledger'), icon: '📒', badge: null },
             ].map((a) => (
               <button key={a.label} onClick={a.onClick} className="w-full flex items-center justify-between px-3 py-2.5 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm transition text-left">
                 <span>{a.icon} {a.label}</span>
@@ -215,6 +219,7 @@ function AdminConfig() {
                     onChange={(e) => setValue(e.target.value)}
                     className="border rounded-lg px-3 py-1.5 text-sm w-36 font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
                     autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && save(c.key)}
                   />
                   <button onClick={() => save(c.key)} className="bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-green-700">Save</button>
                   <button onClick={() => setEditing(null)} className="text-gray-500 text-xs hover:underline">Cancel</button>
@@ -237,18 +242,40 @@ function AdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL');
 
   useEffect(() => { adminApi.users().then(setUsers).catch(console.error).finally(() => setLoading(false)); }, []);
 
-  const filtered = users.filter((u) => u.name.toLowerCase().includes(search.toLowerCase()) || u.phone.includes(search));
+  const toggleBan = async (u: AdminUser) => {
+    const newStatus = u.status === 'BANNED' ? 'ACTIVE' : 'BANNED';
+    try {
+      await adminApi.updateUser(u.id, { status: newStatus });
+      setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, status: newStatus } : x));
+      toast(`User ${newStatus === 'BANNED' ? 'banned' : 'unbanned'} successfully`, 'success');
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Failed', 'error'); }
+  };
+
+  const roles = ['ALL', 'ADMIN', 'MANAGER', 'AGENT', 'CUSTOMER'];
+  const filtered = users.filter((u) => {
+    const matchRole = roleFilter === 'ALL' || u.role === roleFilter;
+    const matchSearch = u.name.toLowerCase().includes(search.toLowerCase()) || u.phone.includes(search);
+    return matchRole && matchSearch;
+  });
 
   if (loading) return <div className="text-center py-16 text-gray-400">Loading users…</div>;
 
   return (
     <div className="bg-white border rounded-xl overflow-hidden">
-      <div className="p-4 border-b flex items-center justify-between gap-4">
-        <h2 className="font-semibold">All Users <span className="text-gray-400 font-normal text-sm">({users.length})</span></h2>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or phone…" className="border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 w-64" />
+      <div className="p-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h2 className="font-semibold">All Users <span className="text-gray-400 font-normal text-sm">({filtered.length})</span></h2>
+        <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-1">
+            {roles.map((r) => (
+              <button key={r} onClick={() => setRoleFilter(r)} className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition ${roleFilter === r ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{r}</button>
+            ))}
+          </div>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name / phone…" className="border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 w-52" />
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -259,6 +286,7 @@ function AdminUsers() {
             <th className="px-4 py-3">Role</th>
             <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3">Joined</th>
+            <th className="px-4 py-3">Actions</th>
           </tr></thead>
           <tbody className="divide-y">
             {filtered.map((u) => (
@@ -269,11 +297,21 @@ function AdminUsers() {
                 <td className="px-4 py-3"><span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded font-medium">{u.role}</span></td>
                 <td className="px-4 py-3"><Badge status={u.status} /></td>
                 <td className="px-4 py-3 text-gray-400 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
+                <td className="px-4 py-3">
+                  {u.role !== 'ADMIN' && (
+                    <button
+                      onClick={() => toggleBan(u)}
+                      className={`text-xs px-3 py-1 rounded-lg font-medium transition ${u.status === 'BANNED' ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                    >
+                      {u.status === 'BANNED' ? 'Unban' : 'Ban'}
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && <p className="text-center py-8 text-gray-400">No users match your search.</p>}
+        {filtered.length === 0 && <p className="text-center py-8 text-gray-400">No users match your filter.</p>}
       </div>
     </div>
   );
@@ -291,44 +329,65 @@ function AdminBookings() {
 
   if (loading) return <div className="text-center py-16 text-gray-400">Loading bookings…</div>;
 
+  const totalRevenue = bookings.filter((b) => b.status === 'CONFIRMED' || b.status === 'CHECKED_OUT').reduce((s, b) => s + b.grandTotalBdt, 0);
+
   return (
-    <div className="bg-white border rounded-xl overflow-hidden">
-      <div className="p-4 border-b flex items-center justify-between gap-4 flex-wrap">
-        <h2 className="font-semibold">All Bookings <span className="text-gray-400 font-normal text-sm">({filtered.length})</span></h2>
-        <div className="flex gap-1 flex-wrap">
-          {statuses.map((s) => (
-            <button key={s} onClick={() => setFilter(s)} className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-              {s.replace(/_/g, ' ')}
-            </button>
-          ))}
+    <div className="space-y-4">
+      <div className="grid sm:grid-cols-3 gap-4">
+        <div className="bg-green-50 text-green-700 rounded-xl p-4">
+          <p className="text-xs font-medium opacity-70 uppercase tracking-wide">Total Bookings</p>
+          <p className="text-2xl font-bold mt-1">{bookings.length}</p>
+        </div>
+        <div className="bg-blue-50 text-blue-700 rounded-xl p-4">
+          <p className="text-xs font-medium opacity-70 uppercase tracking-wide">Confirmed Revenue</p>
+          <p className="text-2xl font-bold mt-1">{formatBDT(totalRevenue)}</p>
+        </div>
+        <div className="bg-yellow-50 text-yellow-700 rounded-xl p-4">
+          <p className="text-xs font-medium opacity-70 uppercase tracking-wide">Pending Payment</p>
+          <p className="text-2xl font-bold mt-1">{bookings.filter((b) => b.status === 'PENDING_PAYMENT').length}</p>
         </div>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead><tr className="border-b bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
-            <th className="px-4 py-3">Ref</th>
-            <th className="px-4 py-3">Guest</th>
-            <th className="px-4 py-3">Hotel</th>
-            <th className="px-4 py-3">Check-in</th>
-            <th className="px-4 py-3">Nights</th>
-            <th className="px-4 py-3">Amount</th>
-            <th className="px-4 py-3">Status</th>
-          </tr></thead>
-          <tbody className="divide-y">
-            {filtered.map((b) => (
-              <tr key={b.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-mono text-xs text-brand-700 font-semibold">{b.bookingRef}</td>
-                <td className="px-4 py-3 font-medium">{b.guestName}</td>
-                <td className="px-4 py-3 text-gray-600">{b.hotel?.name}</td>
-                <td className="px-4 py-3 text-gray-600">{b.checkIn}</td>
-                <td className="px-4 py-3 text-center">{b.nights}</td>
-                <td className="px-4 py-3 font-semibold">{formatBDT(b.grandTotalBdt)}</td>
-                <td className="px-4 py-3"><Badge status={b.status} /></td>
-              </tr>
+
+      <div className="bg-white border rounded-xl overflow-hidden">
+        <div className="p-4 border-b flex items-center justify-between gap-4 flex-wrap">
+          <h2 className="font-semibold">All Bookings <span className="text-gray-400 font-normal text-sm">({filtered.length})</span></h2>
+          <div className="flex gap-1 flex-wrap">
+            {statuses.map((s) => (
+              <button key={s} onClick={() => setFilter(s)} className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                {s.replace(/_/g, ' ')}
+              </button>
             ))}
-          </tbody>
-        </table>
-        {filtered.length === 0 && <p className="text-center py-8 text-gray-400">No bookings found.</p>}
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="border-b bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
+              <th className="px-4 py-3">Ref</th>
+              <th className="px-4 py-3">Guest</th>
+              <th className="px-4 py-3">Hotel</th>
+              <th className="px-4 py-3">Check-in</th>
+              <th className="px-4 py-3">Nights</th>
+              <th className="px-4 py-3">Amount</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Booked</th>
+            </tr></thead>
+            <tbody className="divide-y">
+              {filtered.map((b) => (
+                <tr key={b.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-mono text-xs text-brand-700 font-semibold">{b.bookingRef}</td>
+                  <td className="px-4 py-3 font-medium">{b.guestName}</td>
+                  <td className="px-4 py-3 text-gray-600">{b.hotel?.name}</td>
+                  <td className="px-4 py-3 text-gray-600">{b.checkIn}</td>
+                  <td className="px-4 py-3 text-center">{b.nights}</td>
+                  <td className="px-4 py-3 font-semibold">{formatBDT(b.grandTotalBdt)}</td>
+                  <td className="px-4 py-3"><Badge status={b.status} /></td>
+                  <td className="px-4 py-3 text-gray-400 text-xs">{new Date(b.createdAt).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && <p className="text-center py-8 text-gray-400">No bookings found.</p>}
+        </div>
       </div>
     </div>
   );
@@ -337,32 +396,57 @@ function AdminBookings() {
 function AdminHotels() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('ALL');
 
-  useEffect(() => { adminApi.pendingHotels().then(setHotels).catch(console.error).finally(() => setLoading(false)); }, []);
+  useEffect(() => { adminApi.hotels().then(setHotels).catch(console.error).finally(() => setLoading(false)); }, []);
 
   const approve = async (id: string) => {
     try {
       await adminApi.approveHotel(id);
-      setHotels((prev) => prev.filter((h) => h.id !== id));
+      setHotels((prev) => prev.map((h) => h.id === id ? { ...h, status: 'APPROVED' } : h));
       toast('Hotel approved and listed!', 'success');
     } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Failed', 'error'); }
   };
 
-  if (loading) return <div className="text-center py-16 text-gray-400">Loading pending hotels…</div>;
+  const reject = async (id: string) => {
+    try {
+      await adminApi.rejectHotel(id);
+      setHotels((prev) => prev.map((h) => h.id === id ? { ...h, status: 'REJECTED' } : h));
+      toast('Hotel rejected', 'info');
+    } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Failed', 'error'); }
+  };
+
+  const statuses = ['ALL', 'APPROVED', 'PENDING_APPROVAL', 'REJECTED'];
+  const filtered = filter === 'ALL' ? hotels : hotels.filter((h) => h.status === filter);
+
+  if (loading) return <div className="text-center py-16 text-gray-400">Loading hotels…</div>;
+
+  const pendingCount = hotels.filter((h) => h.status === 'PENDING_APPROVAL').length;
 
   return (
     <div className="space-y-4">
-      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
-        <strong>Hotel Approval Queue</strong> — Review each hotel before it goes live on the platform.
-      </div>
-      {hotels.length === 0 && (
-        <div className="bg-white border rounded-xl p-12 text-center text-gray-400">
-          <div className="text-4xl mb-3">✅</div>
-          <p className="font-medium">No hotels pending approval</p>
-          <p className="text-sm mt-1">All submissions have been reviewed.</p>
+      {pendingCount > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
+          <strong>{pendingCount} hotel{pendingCount > 1 ? 's' : ''} pending approval</strong> — Review and approve or reject below.
         </div>
       )}
-      {hotels.map((h) => (
+
+      <div className="flex gap-1 flex-wrap">
+        {statuses.map((s) => (
+          <button key={s} onClick={() => setFilter(s)} className={`text-sm px-3 py-1.5 rounded-lg font-medium transition ${filter === s ? 'bg-brand-600 text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'}`}>
+            {s.replace(/_/g, ' ')} {filter !== s && <span className="text-xs opacity-60">({hotels.filter((h) => s === 'ALL' ? true : h.status === s).length})</span>}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="bg-white border rounded-xl p-12 text-center text-gray-400">
+          <div className="text-4xl mb-3">🏨</div>
+          <p className="font-medium">No hotels in this category</p>
+        </div>
+      )}
+
+      {filtered.map((h) => (
         <div key={h.id} className="bg-white border rounded-xl p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
@@ -375,23 +459,26 @@ function AdminHotels() {
                 <span>⭐ {h.starRating?.replace(/_/g, ' ')}</span>
                 <span>🛏️ {h.rooms?.length ?? 0} room type(s)</span>
                 <span>🕐 Check-in {h.checkInTime}</span>
+                {h.avgRating ? <span>★ {h.avgRating} avg rating</span> : null}
               </div>
               {h.amenities?.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-3">
-                  {h.amenities.slice(0, 6).map((a) => (
+                  {h.amenities.slice(0, 8).map((a) => (
                     <span key={a} className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded">{a}</span>
                   ))}
                 </div>
               )}
             </div>
-            <div className="flex gap-2 shrink-0">
-              <button onClick={() => approve(h.id)} className="bg-green-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-green-700 font-medium transition">
-                Approve
-              </button>
-              <button onClick={() => toast('Rejection flow not implemented in demo', 'info')} className="border border-red-300 text-red-600 text-sm px-4 py-2 rounded-lg hover:bg-red-50 font-medium transition">
-                Reject
-              </button>
-            </div>
+            {h.status === 'PENDING_APPROVAL' && (
+              <div className="flex gap-2 shrink-0">
+                <button onClick={() => approve(h.id)} className="bg-green-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-green-700 font-medium transition">
+                  ✓ Approve
+                </button>
+                <button onClick={() => reject(h.id)} className="border border-red-300 text-red-600 text-sm px-4 py-2 rounded-lg hover:bg-red-50 font-medium transition">
+                  ✗ Reject
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -427,34 +514,35 @@ function AdminReviews() {
     <div className="space-y-4">
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
         <strong>Review Moderation Queue</strong> — All guest reviews require approval before appearing on hotel pages.
+        {reviews.length === 0 ? ' No pending reviews at this time.' : ` ${reviews.length} review${reviews.length > 1 ? 's' : ''} awaiting moderation.`}
       </div>
       {reviews.length === 0 && (
         <div className="bg-white border rounded-xl p-12 text-center text-gray-400">
           <div className="text-4xl mb-3">🎉</div>
-          <p className="font-medium">No pending reviews</p>
-          <p className="text-sm mt-1">All reviews have been moderated.</p>
+          <p className="font-medium">All clear! No pending reviews.</p>
         </div>
       )}
       {reviews.map((r) => (
         <div key={r.id} className="bg-white border rounded-xl p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-1">
+              <div className="flex items-center gap-3 mb-2">
                 <span className="font-semibold text-sm">{r.user?.name}</span>
-                <span className="text-gray-400 text-xs">at {r.hotel?.name}</span>
+                <span className="text-gray-400 text-xs bg-gray-100 px-2 py-0.5 rounded">{r.hotel?.name}</span>
                 <div className="flex">
                   {Array.from({ length: 5 }, (_, i) => (
-                    <span key={i} className={i < r.rating ? 'text-yellow-400' : 'text-gray-200'}>★</span>
+                    <span key={i} className={`text-sm ${i < r.rating ? 'text-yellow-400' : 'text-gray-200'}`}>★</span>
                   ))}
                 </div>
+                <span className="text-xs text-gray-400">{r.rating}/5</span>
               </div>
               {r.title && <p className="font-medium text-sm mb-1">{r.title}</p>}
               <p className="text-gray-600 text-sm leading-relaxed">{r.body}</p>
               <p className="text-xs text-gray-400 mt-2">{new Date(r.createdAt).toLocaleDateString()}</p>
             </div>
             <div className="flex flex-col gap-2 shrink-0">
-              <button onClick={() => approve(r.id)} className="bg-green-600 text-white text-xs px-3 py-2 rounded-lg hover:bg-green-700 font-medium transition">✓ Approve</button>
-              <button onClick={() => reject(r.id)} className="bg-red-600 text-white text-xs px-3 py-2 rounded-lg hover:bg-red-700 font-medium transition">✗ Reject</button>
+              <button onClick={() => approve(r.id)} className="bg-green-600 text-white text-xs px-4 py-2 rounded-lg hover:bg-green-700 font-medium transition">✓ Approve</button>
+              <button onClick={() => reject(r.id)} className="bg-red-600 text-white text-xs px-4 py-2 rounded-lg hover:bg-red-700 font-medium transition">✗ Reject</button>
             </div>
           </div>
         </div>
@@ -471,20 +559,26 @@ function AdminAgents() {
 
   if (loading) return <div className="text-center py-16 text-gray-400">Loading agents…</div>;
 
+  const totalComm = agents.reduce((s, a) => s + a.totalCommissionBdt, 0);
+  const pendingComm = agents.reduce((s, a) => s + a.pendingCommissionBdt, 0);
+
   return (
     <div className="space-y-4">
       <div className="grid sm:grid-cols-3 gap-4">
         <div className="bg-indigo-50 text-indigo-700 rounded-xl p-4">
           <p className="text-xs font-medium opacity-70 uppercase tracking-wide">Active Agents</p>
           <p className="text-2xl font-bold mt-1">{agents.filter((a) => a.status === 'ACTIVE').length}</p>
+          <p className="text-xs opacity-60 mt-1">Registered on platform</p>
         </div>
         <div className="bg-green-50 text-green-700 rounded-xl p-4">
           <p className="text-xs font-medium opacity-70 uppercase tracking-wide">Total Commission Paid</p>
-          <p className="text-2xl font-bold mt-1">{formatBDT(agents.reduce((s, a) => s + a.totalCommissionBdt, 0))}</p>
+          <p className="text-2xl font-bold mt-1">{formatBDT(totalComm)}</p>
+          <p className="text-xs opacity-60 mt-1">Lifetime earnings</p>
         </div>
         <div className="bg-yellow-50 text-yellow-700 rounded-xl p-4">
           <p className="text-xs font-medium opacity-70 uppercase tracking-wide">Pending Payouts</p>
-          <p className="text-2xl font-bold mt-1">{formatBDT(agents.reduce((s, a) => s + a.pendingCommissionBdt, 0))}</p>
+          <p className="text-2xl font-bold mt-1">{formatBDT(pendingComm)}</p>
+          <p className="text-xs opacity-60 mt-1">Awaiting settlement</p>
         </div>
       </div>
 
@@ -510,7 +604,7 @@ function AdminAgents() {
                   <td className="px-4 py-3 font-medium">{a.name}</td>
                   <td className="px-4 py-3 font-mono text-xs">{a.phone}</td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-400">{a.nidLast4}</td>
-                  <td className="px-4 py-3 text-center">{a.totalBookings}</td>
+                  <td className="px-4 py-3 text-center font-semibold">{a.totalBookings}</td>
                   <td className="px-4 py-3 font-medium text-green-700">{formatBDT(a.totalCommissionBdt)}</td>
                   <td className="px-4 py-3 font-medium text-yellow-700">{formatBDT(a.pendingCommissionBdt)}</td>
                   <td className="px-4 py-3"><Badge status={a.status} /></td>
@@ -535,8 +629,22 @@ function AdminSettlements() {
   if (loading) return <div className="text-center py-16 text-gray-400">Loading settlements…</div>;
   if (!data) return null;
 
+  const pendingAgentTotal = data.agents.filter((s) => s.status === 'PENDING').reduce((sum, s) => sum + s.commissionBdt, 0);
+  const pendingHotelTotal = data.hotels.filter((s) => s.status === 'PENDING').reduce((sum, s) => sum + s.netRevenueBdt, 0);
+
   return (
     <div className="space-y-4">
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="bg-yellow-50 text-yellow-700 rounded-xl p-4">
+          <p className="text-xs font-medium opacity-70 uppercase tracking-wide">Pending Agent Payouts</p>
+          <p className="text-2xl font-bold mt-1">{formatBDT(pendingAgentTotal)}</p>
+        </div>
+        <div className="bg-blue-50 text-blue-700 rounded-xl p-4">
+          <p className="text-xs font-medium opacity-70 uppercase tracking-wide">Pending Hotel Payouts</p>
+          <p className="text-2xl font-bold mt-1">{formatBDT(pendingHotelTotal)}</p>
+        </div>
+      </div>
+
       <div className="flex gap-1 bg-white border rounded-xl p-1.5 w-fit">
         <button onClick={() => setView('agents')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${view === 'agents' ? 'bg-brand-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Agent Settlements</button>
         <button onClick={() => setView('hotels')} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${view === 'hotels' ? 'bg-brand-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Hotel Settlements</button>
@@ -546,7 +654,7 @@ function AdminSettlements() {
         <div className="bg-white border rounded-xl overflow-hidden">
           <div className="p-4 border-b flex items-center justify-between">
             <h2 className="font-semibold">Agent Commission Settlements</h2>
-            <button onClick={() => toast('CSV download not available in demo', 'info')} className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg font-medium">Download CSV</button>
+            <button onClick={() => toast('CSV download coming soon', 'info')} className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg font-medium">⬇ Download CSV</button>
           </div>
           <table className="w-full text-sm">
             <thead><tr className="border-b bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
@@ -556,7 +664,7 @@ function AdminSettlements() {
               <th className="px-4 py-3">Bookings</th>
               <th className="px-4 py-3">Commission</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Actions</th>
+              <th className="px-4 py-3">Action</th>
             </tr></thead>
             <tbody className="divide-y">
               {data.agents.map((s) => (
@@ -583,7 +691,7 @@ function AdminSettlements() {
         <div className="bg-white border rounded-xl overflow-hidden">
           <div className="p-4 border-b flex items-center justify-between">
             <h2 className="font-semibold">Hotel Revenue Settlements</h2>
-            <button onClick={() => toast('CSV download not available in demo', 'info')} className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg font-medium">Download CSV</button>
+            <button onClick={() => toast('CSV download coming soon', 'info')} className="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg font-medium">⬇ Download CSV</button>
           </div>
           <table className="w-full text-sm">
             <thead><tr className="border-b bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
@@ -592,7 +700,7 @@ function AdminSettlements() {
               <th className="px-4 py-3">Bookings</th>
               <th className="px-4 py-3">Net Revenue</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Actions</th>
+              <th className="px-4 py-3">Action</th>
             </tr></thead>
             <tbody className="divide-y">
               {data.hotels.map((s) => (
@@ -618,20 +726,16 @@ function AdminSettlements() {
 }
 
 function AdminLedger() {
-  const entries = [
-    { id: 'le_1', bookingRef: 'CBZ-2026-001', type: 'DEBIT', account: 'GUEST_RECEIVABLE', amountBdt: 12800, description: 'Booking payment received', createdAt: '2026-06-20T10:05:00Z' },
-    { id: 'le_2', bookingRef: 'CBZ-2026-001', type: 'CREDIT', account: 'HOTEL_PAYABLE', amountBdt: 10000, description: 'Hotel revenue payable', createdAt: '2026-06-20T10:05:00Z' },
-    { id: 'le_3', bookingRef: 'CBZ-2026-001', type: 'CREDIT', account: 'PLATFORM_REVENUE', amountBdt: 500, description: 'Platform fee (5%)', createdAt: '2026-06-20T10:05:00Z' },
-    { id: 'le_4', bookingRef: 'CBZ-2026-001', type: 'CREDIT', account: 'VAT_PAYABLE', amountBdt: 1500, description: 'VAT collected (15%)', createdAt: '2026-06-20T10:05:00Z' },
-    { id: 'le_5', bookingRef: 'CBZ-2026-001', type: 'CREDIT', account: 'AGENT_COMMISSION_PAYABLE', amountBdt: 800, description: 'Agent commission (8%)', createdAt: '2026-06-20T10:05:00Z' },
-    { id: 'le_6', bookingRef: 'CBZ-2026-002', type: 'DEBIT', account: 'GUEST_RECEIVABLE', amountBdt: 8400, description: 'Booking payment received', createdAt: '2026-06-21T12:05:00Z' },
-    { id: 'le_7', bookingRef: 'CBZ-2026-002', type: 'CREDIT', account: 'HOTEL_PAYABLE', amountBdt: 7000, description: 'Hotel revenue payable', createdAt: '2026-06-21T12:05:00Z' },
-    { id: 'le_8', bookingRef: 'CBZ-2026-002', type: 'CREDIT', account: 'PLATFORM_REVENUE', amountBdt: 350, description: 'Platform fee (5%)', createdAt: '2026-06-21T12:05:00Z' },
-    { id: 'le_9', bookingRef: 'CBZ-2026-002', type: 'CREDIT', account: 'VAT_PAYABLE', amountBdt: 1050, description: 'VAT collected (15%)', createdAt: '2026-06-21T12:05:00Z' },
-  ];
+  const [entries, setEntries] = useState<LedgerEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { adminApi.ledger().then(setEntries).catch(console.error).finally(() => setLoading(false)); }, []);
+
+  if (loading) return <div className="text-center py-16 text-gray-400">Loading ledger…</div>;
 
   const totalDebits = entries.filter((e) => e.type === 'DEBIT').reduce((s, e) => s + e.amountBdt, 0);
   const totalCredits = entries.filter((e) => e.type === 'CREDIT').reduce((s, e) => s + e.amountBdt, 0);
+  const isBalanced = totalDebits === totalCredits;
 
   return (
     <div className="space-y-4">
@@ -639,24 +743,24 @@ function AdminLedger() {
         <div className="bg-blue-50 text-blue-700 rounded-xl p-4">
           <p className="text-xs font-medium opacity-70 uppercase tracking-wide">Total Debits</p>
           <p className="text-2xl font-bold mt-1">{formatBDT(totalDebits)}</p>
-          <p className="text-xs opacity-60 mt-1">Guest payments in</p>
+          <p className="text-xs opacity-60 mt-1">Guest payments received</p>
         </div>
         <div className="bg-green-50 text-green-700 rounded-xl p-4">
           <p className="text-xs font-medium opacity-70 uppercase tracking-wide">Total Credits</p>
           <p className="text-2xl font-bold mt-1">{formatBDT(totalCredits)}</p>
-          <p className="text-xs opacity-60 mt-1">Distributed to parties</p>
+          <p className="text-xs opacity-60 mt-1">Distributed to all parties</p>
         </div>
-        <div className={`rounded-xl p-4 ${totalDebits === totalCredits ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+        <div className={`rounded-xl p-4 ${isBalanced ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
           <p className="text-xs font-medium opacity-70 uppercase tracking-wide">Balance (must = 0)</p>
-          <p className="text-2xl font-bold mt-1">{formatBDT(totalDebits - totalCredits)}</p>
-          <p className="text-xs opacity-60 mt-1">{totalDebits === totalCredits ? '✓ Balanced' : '⚠ Imbalanced'}</p>
+          <p className="text-2xl font-bold mt-1">{formatBDT(Math.abs(totalDebits - totalCredits))}</p>
+          <p className="text-xs opacity-60 mt-1">{isBalanced ? '✓ Balanced' : '⚠ Imbalanced — check entries'}</p>
         </div>
       </div>
 
       <div className="bg-white border rounded-xl overflow-hidden">
         <div className="p-4 border-b">
           <h2 className="font-semibold">Double-Entry Ledger</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Every booking creates balanced debit/credit entries. Total debits must always equal total credits.</p>
+          <p className="text-xs text-gray-500 mt-0.5">Every booking creates balanced DEBIT (payment in) + CREDIT (distribution) entries. Sum must always be zero.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -670,14 +774,14 @@ function AdminLedger() {
             </tr></thead>
             <tbody className="divide-y">
               {entries.map((e) => (
-                <tr key={e.id} className={`hover:bg-gray-50 ${e.type === 'DEBIT' ? 'bg-blue-50/30' : ''}`}>
+                <tr key={e.id} className={`hover:bg-gray-50 ${e.type === 'DEBIT' ? 'bg-blue-50/20' : ''}`}>
                   <td className="px-4 py-3 font-mono text-xs text-brand-700 font-semibold">{e.bookingRef}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded font-semibold ${e.type === 'DEBIT' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
                       {e.type}
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs">{e.account}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-600">{e.account}</td>
                   <td className="px-4 py-3 text-gray-600">{e.description}</td>
                   <td className={`px-4 py-3 text-right font-semibold ${e.type === 'DEBIT' ? 'text-blue-700' : 'text-green-700'}`}>
                     {e.type === 'DEBIT' ? '+' : '-'}{formatBDT(e.amountBdt)}
@@ -688,7 +792,7 @@ function AdminLedger() {
             </tbody>
             <tfoot>
               <tr className="border-t-2 bg-gray-50 font-semibold">
-                <td colSpan={4} className="px-4 py-3 text-sm">Totals</td>
+                <td colSpan={4} className="px-4 py-3 text-sm text-gray-700">Totals</td>
                 <td className="px-4 py-3 text-right text-sm">
                   <span className="text-blue-700">+{formatBDT(totalDebits)}</span>
                   {' / '}
