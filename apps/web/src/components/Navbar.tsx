@@ -24,7 +24,7 @@ export function Navbar() {
           {(user?.role === 'ADMIN') && (
             <Link href="/admin" className="text-gray-600 hover:text-brand-600 transition">Admin</Link>
           )}
-          {(user?.role === 'HOTEL_MANAGER' || user?.role === 'ADMIN') && (
+          {(user?.role === 'MANAGER' || user?.role === 'ADMIN') && (
             <Link href="/manager" className="text-gray-600 hover:text-brand-600 transition">Manager</Link>
           )}
         </div>
@@ -40,7 +40,17 @@ export function Navbar() {
                 <span className="text-xs bg-brand-700 text-white px-1.5 py-0.5 rounded">{user.role}</span>
               </button>
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
+                <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border py-1 z-50">
+                  {user.role === 'ADMIN' && (
+                    <Link href="/admin" className="block px-4 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50" onClick={() => setMenuOpen(false)}>⚙️ Admin Panel</Link>
+                  )}
+                  {(user.role === 'ADMIN' || user.role === 'MANAGER') && (
+                    <Link href="/manager" className="block px-4 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50" onClick={() => setMenuOpen(false)}>🏨 Hotel Manager</Link>
+                  )}
+                  {user.role === 'AGENT' && (
+                    <Link href="/agent/dashboard" className="block px-4 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50" onClick={() => setMenuOpen(false)}>🤝 Agent Dashboard</Link>
+                  )}
+                  {(user.role === 'ADMIN' || user.role === 'MANAGER' || user.role === 'AGENT') && <hr className="my-1" />}
                   <Link href="/my-bookings" className="block px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setMenuOpen(false)}>My Bookings</Link>
                   <Link href="/profile" className="block px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setMenuOpen(false)}>Profile</Link>
                   <hr className="my-1" />
