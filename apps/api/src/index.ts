@@ -9,6 +9,7 @@ import { env } from './lib/env';
 import { logger } from './lib/logger';
 import { prisma } from './lib/prisma';
 import { startCronJobs } from './lib/cron';
+import { initSpeedInsights } from './lib/speed-insights';
 
 import authRoutes from './modules/auth/auth.routes';
 import hotelRoutes from './modules/hotels/hotel.routes';
@@ -67,6 +68,7 @@ const PORT = env.PORT;
 
 app.listen(PORT, async () => {
   logger.info(`CoxBeach API running on port ${PORT}`);
+  initSpeedInsights();
   await startCronJobs();
 });
 
