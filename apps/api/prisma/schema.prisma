@@ -1,0 +1,483 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Auth ───────────────────────────────────────────────
+
+enum UserRole {
+  CUSTOMER
+  HOTEL_MANAGER
+  AGENT
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+model User {
+  id            String        @id @default(cuid())
+  phone         String        @unique
+  name          String
+  email         String?
+  passwordHash  String?
+  role          UserRole      @default(CUSTOMER)
+  status        AccountStatus @default(ACTIVE)
+  failedLogins  Int           @default(0)
+  lockedUntil   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  otpTokens     OtpToken[]
+  sessions      Session[]
+  bookings      Booking[]
+  reviews       Review[]
+  managedHotels HotelManager[]
+  agent         Agent?
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model OtpToken {
+  id        String   @id @default(cuid())
+  userId    String
+  phone     String
+  otp       String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("otp_tokens")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ─── Hotels ─────────────────────────────────────────────────────
+
+enum HotelStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+}
+
+enum StarRating {
+  ONE
+  TWO
+  THREE
+  FOUR
+  FIVE
+}
+
+model Hotel {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String      @db.Text
+  address     String
+  city        String      @default("Cox's Bazar")
+  latitude    Float?
+  longitude   Float?
+  starRating  StarRating
+  amenities   String[]
+  photos      String[]
+  status      HotelStatus @default(PENDING_APPROVAL)
+  checkInTime  String      @default("14:00")
+  checkOutTime String      @default("12:00")
+  policies    String?     @db.Text
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  managers      HotelManager[]
+  rooms         Room[]
+  bookings      Booking[]
+  reviews       Review[]
+
+  @@map("hotels")
+}
+
+model HotelManager {
+  id        String   @id @default(cuid())
+  hotelId   String
+  userId    String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  hotel Hotel @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([hotelId, userId])
+  @@map("hotel_managers")
+}
+
+// ─── Rooms ──────────────────────────────────────────────────────
+
+enum RoomType {
+  STANDARD
+  DELUXE
+  SUITE
+  FAMILY
+  SEA_VIEW
+  EXECUTIVE
+}
+
+model Room {
+  id           String   @id @default(cuid())
+  hotelId      String
+  name         String
+  type         RoomType
+  description  String?  @db.Text
+  basePriceBdt Int
+  maxGuests    Int
+  totalUnits   Int      @default(1)
+  photos       String[]
+  amenities    String[]
+  floorArea    Float?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  hotel              Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  availabilitySlots  RoomAvailability[]
+  bookingItems       BookingItem[]
+
+  @@map("rooms")
+}
+
+model RoomAvailability {
+  id           String   @id @default(cuid())
+  roomId       String
+  date         DateTime @db.Date
+  totalUnits   Int
+  bookedUnits  Int      @default(0)
+  heldUnits    Int      @default(0)
+  priceBdt     Int
+  updatedAt    DateTime @updatedAt
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, date])
+  @@map("room_availability")
+}
+
+// ─── Agents & QR Attribution ────────────────────────────────────
+
+enum AgentStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+}
+
+model Agent {
+  id             String      @id @default(cuid())
+  userId         String      @unique
+  agentCode      String      @unique
+  qrCodeUrl      String?
+  nidEncrypted   String?
+  nidLastFour    String?
+  commissionRate Float       @default(0.08)
+  status         AgentStatus @default(PENDING_VERIFICATION)
+  walletBalance  Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attributions  AgentAttribution[]
+  settlements   AgentSettlement[]
+  ledgerEntries LedgerEntry[]
+
+  @@map("agents")
+}
+
+model AgentAttribution {
+  id          String   @id @default(cuid())
+  agentId     String
+  sessionId   String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  agent   Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  booking Booking?
+
+  @@map("agent_attributions")
+}
+
+// ─── Bookings ───────────────────────────────────────────────────
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  REFUNDED
+  EXPIRED
+}
+
+model Booking {
+  id               String        @id @default(cuid())
+  bookingRef       String        @unique
+  userId           String
+  hotelId          String
+  attributionId    String?       @unique
+  status           BookingStatus @default(PENDING_PAYMENT)
+  checkIn          DateTime      @db.Date
+  checkOut         DateTime      @db.Date
+  nights           Int
+  guestCount       Int
+  guestName        String
+  guestPhone       String
+  guestEmail       String?
+  specialRequests  String?
+  holdExpiresAt    DateTime?
+
+  baseTotalBdt     Int
+  platformFeeBdt   Int
+  agentCommBdt     Int
+  vatBdt           Int
+  grandTotalBdt    Int
+
+  cancelledAt      DateTime?
+  cancelReason     String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  user          User              @relation(fields: [userId], references: [id])
+  hotel         Hotel             @relation(fields: [hotelId], references: [id])
+  attribution   AgentAttribution? @relation(fields: [attributionId], references: [id])
+  items         BookingItem[]
+  payments      Payment[]
+  ledgerEntries LedgerEntry[]
+  review        Review?
+
+  @@map("bookings")
+}
+
+model BookingItem {
+  id        String @id @default(cuid())
+  bookingId String
+  roomId    String
+  nights    Int
+  units     Int    @default(1)
+  pricePerNightBdt Int
+  subtotalBdt      Int
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  room    Room    @relation(fields: [roomId], references: [id])
+
+  @@map("booking_items")
+}
+
+// ─── Payments ───────────────────────────────────────────────────
+
+enum PaymentGateway {
+  BKASH
+  NAGAD
+  ROCKET
+  SSLCOMMERZ
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id              String         @id @default(cuid())
+  bookingId       String
+  gateway         PaymentGateway
+  status          PaymentStatus  @default(PENDING)
+  amountBdt       Int
+  gatewayTxnId    String?        @unique
+  gatewayRef      String?
+  gatewayResponse Json?
+  webhookIdempKey String?        @unique
+  refundedAt      DateTime?
+  refundRef       String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@map("payments")
+}
+
+// ─── Ledger (Double-Entry Accounting) ───────────────────────────
+
+enum LedgerAccount {
+  PLATFORM_REVENUE
+  HOTEL_PAYABLE
+  AGENT_COMMISSION
+  VAT_PAYABLE
+  CUSTOMER_PAYMENT
+  REFUND_EXPENSE
+}
+
+enum LedgerType {
+  DEBIT
+  CREDIT
+}
+
+model LedgerEntry {
+  id          String        @id @default(cuid())
+  bookingId   String?
+  agentId     String?
+  account     LedgerAccount
+  type        LedgerType
+  amountBdt   Int
+  description String
+  createdAt   DateTime      @default(now())
+
+  booking Booking? @relation(fields: [bookingId], references: [id])
+  agent   Agent?   @relation(fields: [agentId], references: [id])
+
+  @@map("ledger_entries")
+}
+
+// ─── Settlements ────────────────────────────────────────────────
+
+enum SettlementStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model HotelSettlement {
+  id          String           @id @default(cuid())
+  hotelId     String
+  periodStart DateTime         @db.Date
+  periodEnd   DateTime         @db.Date
+  grossBdt    Int
+  feesBdt     Int
+  netBdt      Int
+  status      SettlementStatus @default(PENDING)
+  csvUrl      String?
+  processedAt DateTime?
+  createdAt   DateTime         @default(now())
+
+  @@map("hotel_settlements")
+}
+
+model AgentSettlement {
+  id          String           @id @default(cuid())
+  agentId     String
+  periodStart DateTime         @db.Date
+  periodEnd   DateTime         @db.Date
+  commBdt     Int
+  status      SettlementStatus @default(PENDING)
+  processedAt DateTime?
+  createdAt   DateTime         @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id])
+
+  @@map("agent_settlements")
+}
+
+// ─── Reviews ────────────────────────────────────────────────────
+
+enum ReviewStatus {
+  PENDING_MODERATION
+  APPROVED
+  REJECTED
+}
+
+model Review {
+  id        String       @id @default(cuid())
+  bookingId String       @unique
+  userId    String
+  hotelId   String
+  rating    Int
+  title     String?
+  body      String       @db.Text
+  status    ReviewStatus @default(PENDING_MODERATION)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  hotel   Hotel   @relation(fields: [hotelId], references: [id])
+
+  @@map("reviews")
+}
+
+// ─── Notifications ──────────────────────────────────────────────
+
+enum NotificationChannel {
+  SMS
+  EMAIL
+  IN_APP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String
+  channel   NotificationChannel
+  subject   String?
+  body      String              @db.Text
+  status    NotificationStatus  @default(QUEUED)
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+// ─── Platform Config (Admin-controlled rates) ───────────────────
+
+model PlatformConfig {
+  id               String   @id @default(cuid())
+  key              String   @unique
+  value            String
+  description      String?
+  updatedAt        DateTime @updatedAt
+  updatedByAdminId String?
+
+  @@map("platform_config")
+}
+
+// ─── Audit Log ──────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorRole  String?
+  action     String
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}

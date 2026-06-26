@@ -1,0 +1,141 @@
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+class ApiClient {
+  private getToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('coxbeach_token');
+  }
+
+  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const token = this.getToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string>),
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data as T;
+  }
+
+  get<T>(path: string) { return this.request<T>(path); }
+  post<T>(path: string, body: unknown) { return this.request<T>(path, { method: 'POST', body: JSON.stringify(body) }); }
+  patch<T>(path: string, body: unknown) { return this.request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }); }
+  delete<T>(path: string) { return this.request<T>(path, { method: 'DELETE' }); }
+}
+
+export const api = new ApiClient();
+
+// Auth helpers
+export const authApi = {
+  sendOtp: (phone: string) => api.post('/api/auth/send-otp', { phone }),
+  verifyOtp: (phone: string, otp: string) => api.post<{ token: string; user: User }>('/api/auth/verify-otp', { phone, otp }),
+  login: (phone: string, password: string) => api.post<{ token: string; user: User }>('/api/auth/login', { phone, password }),
+  register: (data: { phone: string; name: string; email?: string; password?: string }) => api.post<{ token: string; user: User }>('/api/auth/register', data),
+  me: () => api.get<User>('/api/auth/me'),
+};
+
+// Hotel helpers
+export const hotelApi = {
+  list: () => api.get<Hotel[]>('/api/hotels'),
+  get: (id: string) => api.get<Hotel>(`/api/hotels/${id}`),
+  create: (data: Partial<Hotel>) => api.post<Hotel>('/api/hotels', data),
+  approve: (id: string) => api.post(`/api/hotels/${id}/approve`, {}),
+};
+
+// Search
+export const searchApi = {
+  search: (params: SearchParams) => {
+    const qs = new URLSearchParams(params as unknown as Record<string, string>).toString();
+    return api.get<SearchResult>(`/api/search?${qs}`);
+  },
+};
+
+// Bookings
+export const bookingApi = {
+  hold: (data: HoldRequest) => api.post<{ booking: Booking; pricing: Pricing; holdExpiresAt: string }>('/api/bookings/hold', data),
+  my: () => api.get<Booking[]>('/api/bookings/my'),
+  get: (id: string) => api.get<Booking>(`/api/bookings/${id}`),
+  cancel: (id: string, reason?: string) => api.post(`/api/bookings/${id}/cancel`, { reason }),
+};
+
+// Payments
+export const paymentApi = {
+  initiate: (bookingId: string, gateway: string) => api.post<PaymentResponse>('/api/payments/initiate', { bookingId, gateway }),
+  confirmSandbox: (gateway: string, bookingId: string, txnId: string) => {
+    const payloadKey = gateway === 'SSLCOMMERZ' ? 'val_id' : 'txnId';
+    return api.post(`/api/payments/webhook/${gateway.toLowerCase()}`, { bookingId, [payloadKey]: txnId });
+  },
+};
+
+// Pricing
+export const pricingApi = {
+  quote: (basePricePerNight: number, nights: number, hasAgent = false) =>
+    api.get<Pricing>(`/api/pricing/quote?basePricePerNight=${basePricePerNight}&nights=${nights}&hasAgent=${hasAgent}`),
+};
+
+// Reviews
+export const reviewApi = {
+  create: (data: { bookingId: string; rating: number; title?: string; body: string }) => api.post('/api/reviews', data),
+  hotel: (hotelId: string) => api.get<{ reviews: Review[]; avgRating: number; count: number }>(`/api/reviews/hotel/${hotelId}`),
+};
+
+// Agent
+export const agentApi = {
+  register: (nid: string) => api.post('/api/agents/register', { nid }),
+  myProfile: () => api.get('/api/agents/my'),
+  myEarnings: () => api.get('/api/agents/my/earnings'),
+  createAttribution: (agentCode: string) => api.post<{ sessionId: string }>('/api/agents/attribute', { agentCode }),
+};
+
+// Admin
+export const adminApi = {
+  kpis: () => api.get<KPIs>('/api/admin/kpis'),
+  config: () => api.get<PlatformConfig[]>('/api/admin/config'),
+  updateConfig: (key: string, value: string) => api.patch(`/api/admin/config/${key}`, { value }),
+  users: () => api.get('/api/admin/users'),
+  bookings: () => api.get('/api/admin/bookings'),
+  pendingReviews: () => api.get('/api/reviews/pending'),
+  approveReview: (id: string) => api.patch(`/api/reviews/${id}/approve`, {}),
+  rejectReview: (id: string) => api.patch(`/api/reviews/${id}/reject`, {}),
+  approveHotel: (id: string) => api.post(`/api/hotels/${id}/approve`, {}),
+};
+
+// Types
+export interface User { id: string; phone: string; name: string; email?: string; role: string; }
+export interface Hotel {
+  id: string; name: string; slug: string; description: string; address: string; city: string;
+  starRating: string; amenities: string[]; photos: string[]; status: string;
+  checkInTime: string; checkOutTime: string; avgRating?: number;
+  _count?: { reviews: number; rooms: number };
+  rooms?: Room[];
+  reviews?: Review[];
+}
+export interface Room {
+  id: string; hotelId: string; name: string; type: string; description?: string;
+  basePriceBdt: number; maxGuests: number; totalUnits: number; photos: string[]; amenities: string[];
+  hotel?: Hotel;
+}
+export interface Booking {
+  id: string; bookingRef: string; userId: string; hotelId: string; status: string;
+  checkIn: string; checkOut: string; nights: number; guestCount: number;
+  guestName: string; guestPhone: string; guestEmail?: string;
+  baseTotalBdt: number; platformFeeBdt: number; agentCommBdt: number; vatBdt: number; grandTotalBdt: number;
+  hotel?: Hotel; items?: BookingItem[]; payments?: Payment[];
+  holdExpiresAt?: string;
+}
+export interface BookingItem { id: string; roomId: string; nights: number; pricePerNightBdt: number; subtotalBdt: number; room?: Room; }
+export interface Payment { id: string; gateway: string; status: string; amountBdt: number; }
+export interface Pricing {
+  baseTotalBdt: number; platformFeeBdt: number; agentCommBdt: number; vatBdt: number; grandTotalBdt: number;
+  nights: number; pricePerNight: number;
+  rates: { vatRate: number; platformFeeRate: number; agentCommRate: number };
+}
+export interface PaymentResponse { paymentId: string; gateway: string; amountBdt: number; redirectUrl: string; instructions: string; sandboxInstructions: { ref: string } }
+export interface Review { id: string; rating: number; title?: string; body: string; user?: { name: string }; createdAt: string; }
+export interface SearchParams { checkIn: string; checkOut: string; guests?: number; city?: string; minPrice?: number; maxPrice?: number; sortBy?: string; }
+export interface SearchResult { results: (Room & { pricePerNight: number; totalPrice: number; nights: number; hotel: Hotel })[]; nights: number; }
+export interface KPIs { totalHotels: number; totalBookings: number; confirmedBookings: number; totalRevenueBdt: number; totalUsers: number; totalAgents: number; pendingReviews: number; pendingHotels: number; }
+export interface PlatformConfig { key: string; value: string; description?: string; }
