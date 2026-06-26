@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { SearchBar } from '@/components/SearchBar';
 import { HotelCard } from '@/components/HotelCard';
 import { hotelApi, Hotel } from '@/lib/api';

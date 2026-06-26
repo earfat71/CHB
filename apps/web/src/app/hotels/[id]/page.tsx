@@ -63,8 +63,6 @@ function HotelDetail() {
   if (loading) return <div className="flex items-center justify-center h-64 text-gray-500">Loading hotel...</div>;
   if (!hotel) return <div className="text-center py-16 text-red-600">Hotel not found</div>;
 
-  const selectedRoom = hotel.rooms?.find((r) => r.id === selectedRoomId);
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Hotel Header */}

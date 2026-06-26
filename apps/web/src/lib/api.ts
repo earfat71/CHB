@@ -116,7 +116,10 @@ export interface Hotel {
 export interface Room {
   id: string; hotelId: string; name: string; type: string; description?: string;
   basePriceBdt: number; maxGuests: number; totalUnits: number; photos: string[]; amenities: string[];
-  hotel?: Hotel;
+  isActive?: boolean; hotel?: Hotel;
+}
+export interface HoldRequest {
+  roomId: string; checkIn: string; checkOut: string; guestCount?: number; attributionSessionId?: string;
 }
 export interface Booking {
   id: string; bookingRef: string; userId: string; hotelId: string; status: string;
@@ -124,7 +127,7 @@ export interface Booking {
   guestName: string; guestPhone: string; guestEmail?: string;
   baseTotalBdt: number; platformFeeBdt: number; agentCommBdt: number; vatBdt: number; grandTotalBdt: number;
   hotel?: Hotel; items?: BookingItem[]; payments?: Payment[];
-  holdExpiresAt?: string;
+  holdExpiresAt?: string; review?: Review | null;
 }
 export interface BookingItem { id: string; roomId: string; nights: number; pricePerNightBdt: number; subtotalBdt: number; room?: Room; }
 export interface Payment { id: string; gateway: string; status: string; amountBdt: number; }

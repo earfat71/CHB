@@ -256,6 +256,3 @@ function AdminHotels() {
   );
 }
 
-function toast(msg: string, type: string) {
-  console.log(`[${type.toUpperCase()}] ${msg}`);
-}
