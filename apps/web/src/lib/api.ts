@@ -95,11 +95,14 @@ export const adminApi = {
   kpis: () => api.get<KPIs>('/api/admin/kpis'),
   config: () => api.get<PlatformConfig[]>('/api/admin/config'),
   updateConfig: (key: string, value: string) => api.patch(`/api/admin/config/${key}`, { value }),
-  users: () => api.get('/api/admin/users'),
-  bookings: () => api.get('/api/admin/bookings'),
-  pendingReviews: () => api.get('/api/reviews/pending'),
+  users: () => api.get<AdminUser[]>('/api/admin/users'),
+  bookings: () => api.get<AdminBooking[]>('/api/admin/bookings'),
+  agents: () => api.get<AdminAgent[]>('/api/admin/agents'),
+  settlements: () => api.get<{ agents: AgentSettlement[]; hotels: HotelSettlement[] }>('/api/admin/settlements'),
+  pendingReviews: () => api.get<AdminReview[]>('/api/reviews/pending'),
   approveReview: (id: string) => api.patch(`/api/reviews/${id}/approve`, {}),
   rejectReview: (id: string) => api.patch(`/api/reviews/${id}/reject`, {}),
+  pendingHotels: () => api.get<Hotel[]>('/api/hotels?status=PENDING_APPROVAL'),
   approveHotel: (id: string) => api.post(`/api/hotels/${id}/approve`, {}),
 };
 
@@ -142,3 +145,9 @@ export interface SearchParams { checkIn: string; checkOut: string; guests?: numb
 export interface SearchResult { results: (Room & { pricePerNight: number; totalPrice: number; nights: number; hotel: Hotel })[]; nights: number; }
 export interface KPIs { totalHotels: number; totalBookings: number; confirmedBookings: number; totalRevenueBdt: number; totalUsers: number; totalAgents: number; pendingReviews: number; pendingHotels: number; }
 export interface PlatformConfig { key: string; value: string; description?: string; }
+export interface AdminUser { id: string; name: string; phone: string; email?: string; role: string; status: string; createdAt: string; }
+export interface AdminBooking { id: string; bookingRef: string; status: string; checkIn: string; checkOut: string; nights: number; guestName: string; grandTotalBdt: number; user?: { name: string }; hotel?: { name: string }; createdAt: string; }
+export interface AdminReview { id: string; rating: number; title?: string; body: string; status: string; user?: { name: string }; hotel?: { name: string }; createdAt: string; }
+export interface AdminAgent { id: string; agentCode: string; name: string; phone: string; nidLast4: string; totalBookings: number; totalCommissionBdt: number; pendingCommissionBdt: number; status: string; joinedAt: string; }
+export interface AgentSettlement { id: string; agentName: string; agentCode: string; period: string; totalBookings: number; commissionBdt: number; status: string; createdAt: string; }
+export interface HotelSettlement { id: string; hotelName: string; period: string; totalBookings: number; netRevenueBdt: number; status: string; createdAt: string; }
