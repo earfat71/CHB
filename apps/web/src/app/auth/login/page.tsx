@@ -27,7 +27,7 @@ function LoginForm() {
     try {
       await authApi.sendOtp(phone);
       setOtpSent(true);
-      toast('OTP sent! (Check server logs in sandbox mode)', 'success');
+      toast('OTP sent! Use 123456 as the demo OTP', 'success');
     } catch (e: unknown) { toast(e instanceof Error ? e.message : 'Failed', 'error'); }
     finally { setLoading(false); }
   };
