@@ -144,6 +144,7 @@ export interface Room {
 }
 export interface HoldRequest {
   roomId: string; checkIn: string; checkOut: string; guestCount?: number; attributionSessionId?: string;
+  guestName?: string; guestPhone?: string; guestEmail?: string;
 }
 export interface Booking {
   id: string; bookingRef: string; userId: string; hotelId: string; status: string;

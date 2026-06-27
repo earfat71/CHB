@@ -34,6 +34,11 @@ function HotelDetail() {
   const [guests, setGuests] = useState(sp.get('guests') || '2');
   const [selectedRoomId, setSelectedRoomId] = useState(sp.get('roomId') || '');
 
+  // Agent-only: guest details for booking on behalf of a customer
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+
   const nights = checkIn && checkOut ? nightsCount(checkIn, checkOut) : 0;
   const agentSession = typeof window !== 'undefined' ? sessionStorage.getItem('agentSession') : null;
 
@@ -69,6 +74,10 @@ function HotelDetail() {
     if (!selectedRoomId) { toast('Please select a room', 'error'); return; }
     if (!checkIn || !checkOut) { toast('Please select dates', 'error'); return; }
     if (nights < 1) { toast('Check-out must be after check-in', 'error'); return; }
+    if (user.role === 'AGENT') {
+      if (!guestName.trim()) { toast('Guest name is required', 'error'); return; }
+      if (!guestPhone.trim()) { toast('Guest phone is required', 'error'); return; }
+    }
 
     setBooking(true);
     try {
@@ -78,6 +87,11 @@ function HotelDetail() {
         checkOut,
         guestCount: Number(guests),
         attributionSessionId: agentSession || undefined,
+        ...(user.role === 'AGENT' && {
+          guestName: guestName.trim(),
+          guestPhone: guestPhone.trim(),
+          guestEmail: guestEmail.trim() || undefined,
+        }),
       });
       router.push(`/booking/checkout?bookingId=${result.booking.id}`);
     } catch (e: unknown) {
@@ -335,6 +349,47 @@ function HotelDetail() {
                 ))}
               </select>
             </div>
+
+            {/* Agent: guest details section */}
+            {user?.role === 'AGENT' && (
+              <div className="mb-4 border border-brand-200 rounded-xl p-3 bg-brand-50 space-y-3">
+                <p className="text-xs font-semibold text-brand-800 flex items-center gap-1.5">
+                  <span>🤝</span> Guest Details <span className="text-brand-500 font-normal">(booking on behalf of customer)</span>
+                </p>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Guest Name <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="Full name of the guest"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Guest Phone <span className="text-red-500">*</span></label>
+                  <input
+                    type="tel"
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                    placeholder="+8801XXXXXXXXX"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Guest Email <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="email"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    placeholder="guest@email.com"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                  />
+                </div>
+              </div>
+            )}
 
             {nights > 0 && (
               <div className="bg-brand-50 rounded-lg px-3 py-2 text-xs text-brand-700 mb-4 text-center font-medium">

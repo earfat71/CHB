@@ -32,7 +32,7 @@ interface AgentProfile {
   }>;
 }
 
-type Tab = 'overview' | 'bookings' | 'wallet' | 'qr';
+type Tab = 'overview' | 'book' | 'bookings' | 'wallet' | 'qr';
 
 function QrDisplay({ agentCode, qrToken }: { agentCode: string; qrToken: string }) {
   const qrUrl = typeof window !== 'undefined'
@@ -215,6 +215,7 @@ export default function AgentDashboard() {
 
   const TABS: { id: Tab; label: string }[] = [
     { id: 'overview', label: '📊 Overview' },
+    { id: 'book', label: '🏨 Book for Guest' },
     { id: 'qr', label: '📱 QR Code' },
     { id: 'bookings', label: `📋 Bookings (${attributedBookings.length})` },
     { id: 'wallet', label: '💰 Wallet' },
@@ -297,6 +298,64 @@ export default function AgentDashboard() {
                 Earned on the room subtotal of every booking attributed to your QR code within the 24-hour window.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'book' && (
+        <div className="space-y-5">
+          <div className="bg-white border rounded-xl p-6">
+            <h3 className="font-semibold text-gray-900 mb-1">Book a Room for a Guest</h3>
+            <p className="text-sm text-gray-500 mb-5">
+              Search for available hotels, select a room, and enter the guest&apos;s details. Your 5% commission will be applied automatically.
+            </p>
+
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 bg-brand-50 border border-brand-200 rounded-xl">
+                <span className="text-2xl mt-0.5">1️⃣</span>
+                <div>
+                  <p className="font-medium text-sm text-gray-800">Search for a hotel</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Browse available hotels in Cox&apos;s Bazar, filter by price, stars, or amenities.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-brand-50 border border-brand-200 rounded-xl">
+                <span className="text-2xl mt-0.5">2️⃣</span>
+                <div>
+                  <p className="font-medium text-sm text-gray-800">Select room &amp; dates</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Pick check-in/check-out dates and choose the right room type.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-brand-50 border border-brand-200 rounded-xl">
+                <span className="text-2xl mt-0.5">3️⃣</span>
+                <div>
+                  <p className="font-medium text-sm text-gray-800">Enter guest details</p>
+                  <p className="text-xs text-gray-500 mt-0.5">A <strong>Guest Details</strong> form will appear in the booking sidebar — fill in the guest&apos;s name and phone number.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                <span className="text-2xl mt-0.5">💰</span>
+                <div>
+                  <p className="font-medium text-sm text-gray-800">Commission applied automatically</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Your 5% agent commission is added to every booking you complete — no QR scan needed when you&apos;re logged in as agent.</p>
+                </div>
+              </div>
+            </div>
+
+            <a
+              href="/search"
+              className="mt-6 w-full flex items-center justify-center gap-2 bg-marigold-500 hover:bg-marigold-600 text-gray-900 py-3 rounded-xl font-bold transition text-sm"
+            >
+              🔍 Search Hotels Now
+            </a>
+          </div>
+
+          <div className="bg-sand-50 border border-sand-200 rounded-xl p-5 text-sm text-gray-600">
+            <h4 className="font-semibold text-gray-800 mb-2">Important notes</h4>
+            <ul className="space-y-1.5">
+              <li>• The booking is registered under the guest&apos;s name and phone — not yours.</li>
+              <li>• Commission (5%) is shown on the pricing breakdown at checkout.</li>
+              <li>• Commission is credited as <em>pending</em> on your wallet after payment, and becomes available after the guest checks out.</li>
+            </ul>
           </div>
         </div>
       )}

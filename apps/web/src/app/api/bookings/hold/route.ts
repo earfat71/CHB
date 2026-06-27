@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { roomId, checkIn, checkOut, guestCount = 2, attributionSessionId } = await req.json();
+  const { roomId, checkIn, checkOut, guestCount = 2, attributionSessionId, guestName, guestPhone, guestEmail } = await req.json();
 
   if (!roomId || !checkIn || !checkOut) {
     return NextResponse.json({ error: 'roomId, checkIn and checkOut are required' }, { status: 400 });
@@ -48,9 +48,10 @@ export async function POST(req: Request) {
     checkOut,
     nights,
     guestCount: Number(guestCount),
-    guestName: user.name,
-    guestPhone: user.phone,
-    guestEmail: user.email || '',
+    guestName: (guestName as string | undefined)?.trim() || user.name,
+    guestPhone: (guestPhone as string | undefined)?.trim() || user.phone,
+    guestEmail: (guestEmail as string | undefined)?.trim() || user.email || '',
+    bookedByAgentId: user.role === 'AGENT' && guestName ? user.id : null,
     baseTotalBdt: pricing.baseTotalBdt,
     platformFeeBdt: pricing.platformFeeBdt,
     agentCommBdt: pricing.agentCommBdt,

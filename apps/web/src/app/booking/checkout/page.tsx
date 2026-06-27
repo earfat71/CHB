@@ -237,19 +237,28 @@ function CheckoutPage() {
 
           <div className="bg-white border rounded-xl p-5">
             <h2 className="font-semibold text-gray-900 mb-3">Guest Details</h2>
+
+            {/* Agent booking badge */}
+            {user?.role === 'AGENT' && (
+              <div className="mb-3 flex items-center gap-2 bg-brand-50 border border-brand-200 rounded-lg px-3 py-2 text-xs text-brand-700">
+                <span>🤝</span>
+                <span>Booked by agent: <strong>{user.name}</strong></span>
+              </div>
+            )}
+
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Name</span>
-                <span className="font-medium">{user?.name ?? booking.guestName}</span>
+                <span className="text-gray-500">Guest Name</span>
+                <span className="font-medium">{booking.guestName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Phone</span>
-                <span className="font-mono">{user?.phone ?? booking.guestPhone}</span>
+                <span className="text-gray-500">Guest Phone</span>
+                <span className="font-mono">{booking.guestPhone}</span>
               </div>
-              {(user?.email || booking.guestEmail) && (
+              {booking.guestEmail && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Email</span>
-                  <span>{user?.email || booking.guestEmail}</span>
+                  <span className="text-gray-500">Guest Email</span>
+                  <span>{booking.guestEmail}</span>
                 </div>
               )}
             </div>
